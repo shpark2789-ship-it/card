@@ -32,7 +32,7 @@ googleProvider.setCustomParameters({
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-card-manager-v1';
 
 // --- Gemini API Setup ---
-const apiKey = ""; // API Key는 환경에서 제공됩니다.
+const apiKey = ""; 
 
 const fetchGemini = async (prompt, systemInstruction) => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
@@ -320,10 +320,6 @@ export default function App() {
   const currentMonthStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}`;
   const displayMonthStr = `${String(selectedDate.getFullYear()).slice(2)}년 ${selectedDate.getMonth() + 1}월`;
 
-  // --- 스와이프(제스처) 상태 관리 ---
-  const [mainTouchStart, setMainTouchStart] = useState(null);
-  const [mainTouchEnd, setMainTouchEnd] = useState(null);
-
   // 1. Firebase 인증 및 실시간 동기화
   useEffect(() => {
     const initAuth = async () => {
@@ -502,24 +498,6 @@ export default function App() {
   const totalSpendAll = cards.reduce((sum, card) => sum + (card.id === 3 ? 0 : calculateCurrentSpend(card)), 0);
   const totalSaved = cards.reduce((sum, card) => sum + card.savedAmount, 0);
 
-  // --- 메인 스와이프 제스처 처리 (아이폰 대응) ---
-  const onMainTouchStart = (e) => {
-    setMainTouchEnd(null);
-    setMainTouchStart(e.targetTouches[0].clientX);
-  };
-  const onMainTouchMove = (e) => setMainTouchEnd(e.targetTouches[0].clientX);
-  const onMainTouchEnd = () => {
-    if (!mainTouchStart || !mainTouchEnd) return;
-    const distance = mainTouchStart - mainTouchEnd;
-    const tabs = ['cards', 'smartPick', 'home'];
-    const currentIndex = tabs.indexOf(activeTab);
-    
-    // 왼쪽 스와이프 (손가락 R->L): 다음 페이지
-    if (distance > 60 && currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1]); 
-    // 오른쪽 스와이프 (손가락 L->R): 이전 페이지
-    if (distance < -60 && currentIndex > 0) setActiveTab(tabs[currentIndex - 1]); 
-  };
-
   // --- AI 스마트 픽 (내부 데이터만 사용 강제) ---
   const handleSmartPick = async () => {
     if (!aiPickQuery.trim()) return;
@@ -581,8 +559,8 @@ export default function App() {
     const onDetailTouchEnd = () => {
       if (!detailTouchStart || !detailTouchEnd) return;
       const distance = detailTouchStart - detailTouchEnd;
-      // 손가락이 왼쪽에서 오른쪽으로 50px 이상 이동하면 창 닫기
-      if (distance < -50) onClose(); 
+      // 손가락이 왼쪽에서 오른쪽으로 60px 이상 이동하면 창 닫기 (뒤로가기)
+      if (distance < -60) onClose(); 
     };
 
     const getAppliedLimit = () => {
@@ -727,12 +705,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex justify-center font-sans select-none overflow-hidden">
-      <div 
-        className="w-full max-w-md bg-white h-screen flex flex-col relative shadow-2xl border-x"
-        onTouchStart={onMainTouchStart} onTouchMove={onMainTouchMove} onTouchEnd={onMainTouchEnd}
-      >
+      <div className="w-full max-w-md bg-white h-screen flex flex-col relative shadow-2xl border-x">
         {authError && (
-          <div className="bg-red-50 text-red-600 text-[11px] font-bold px-4 py-2 text-center flex justify-center items-center z-30">
+          <div className="bg-red-50 text-red-600 text-[11px] font-bold px-4 py-2 text-center flex justify-center items-center relative z-30">
             <AlertTriangle size={14} className="mr-1"/> Firebase 설정 전이라 데이터가 클라우드에 저장되지 않습니다.
           </div>
         )}
