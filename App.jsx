@@ -336,7 +336,6 @@ export default function App() {
       } catch (err) {
         console.error("Auth Init Error", err);
         setAuthError(true); 
-        
         if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
           setToastMsg('Firebase 인증 설정이 아직 완료되지 않아 로컬 모드로 작동합니다.');
         } else {
@@ -352,7 +351,6 @@ export default function App() {
       if (!currentUser) setIsSyncing(false);
     });
 
-    // 구글 리다이렉트 로그인 결과 확인
     getRedirectResult(auth).then((result) => {
       if (result) {
         setToastMsg('🎉 구글 로그인 성공! 가족과 연동되었습니다.');
@@ -363,8 +361,6 @@ export default function App() {
       console.error("구글 로그인 에러:", error);
       if (error.code === 'auth/unauthorized-domain') {
         setToastMsg('⚠️ Firebase 콘솔 > 인증 > 설정 > 승인된 도메인에 Vercel 주소를 추가해주세요!');
-      } else if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
-        setToastMsg('⚠️ Firebase 콘솔에서 Google 로그인 제공업체를 먼저 활성화해주세요.');
       } else {
         setToastMsg(`구글 로그인 실패: ${error.code || error.message}`);
       }
@@ -384,12 +380,7 @@ export default function App() {
     try {
       await signInWithRedirect(auth, googleProvider);
     } catch (error) {
-      console.error("구글 로그인 준비 에러:", error);
-      if (error.code === 'auth/unauthorized-domain') {
-        setToastMsg('⚠️ Firebase 승인된 도메인에 Vercel 주소를 추가해야 합니다!');
-      } else {
-        setToastMsg(`로그인 화면 이동 실패: ${error.code || error.message}`);
-      }
+      setToastMsg(`로그인 화면 이동 실패: ${error.code || error.message}`);
       setTimeout(() => setToastMsg(''), 5000);
     }
   };
@@ -398,18 +389,12 @@ export default function App() {
     try {
       await signOut(auth);
       setToastMsg('로그아웃 되었습니다.');
-    } catch (error) {
-      console.error(error);
-    }
+    } catch (error) { console.error(error); }
     setTimeout(() => setToastMsg(''), 2000);
   };
 
   useEffect(() => {
-    if (!user || authError) {
-      setIsSyncing(false); 
-      return; 
-    }
-    
+    if (!user || authError) { setIsSyncing(false); return; }
     setIsSyncing(true);
     const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'monthly_data', currentMonthStr);
     const unsubscribe = onSnapshot(docRef, (snapshot) => {
@@ -420,7 +405,6 @@ export default function App() {
           const savedLM = data.lastMonthSpends?.[cId] || 0;
           const savedBS = data.spendHistories?.[cId] || {};
           let newSavedAmount = 0;
-          
           if (savedBS) {
             Object.entries(savedBS).forEach(([b_id, histories]) => {
               const targetBenefit = card.detailedBenefits.find(b => b.id === b_id);
@@ -437,27 +421,15 @@ export default function App() {
           };
         }));
       } else {
-        setCards(INITIAL_CARDS.map(c => ({
-          ...c,
-          lastMonthSpend: 0,
-          benefitSpending: {},
-          savedAmount: 0
-        })));
+        setCards(INITIAL_CARDS.map(c => ({ ...c, lastMonthSpend: 0, benefitSpending: {}, savedAmount: 0 })));
       }
       setIsSyncing(false);
-    }, (error) => {
-      console.error("Firestore Snapshot Error", error);
-      setIsSyncing(false);
-    });
+    }, (error) => { setIsSyncing(false); });
     return () => unsubscribe();
   }, [user, currentMonthStr, authError]);
 
   const saveToCloud = async (newCards) => {
-    if (authError || !user) {
-      setToastMsg('⚠️ 인증 설정이 완료되지 않아 데이터가 기기에만 임시 저장됩니다.');
-      setTimeout(() => setToastMsg(''), 3000);
-      return;
-    }
+    if (authError || !user) return;
     const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'monthly_data', currentMonthStr);
     const lastMonthSpends = {};
     const spendHistories = {};
@@ -465,11 +437,7 @@ export default function App() {
       lastMonthSpends[String(c.id)] = c.lastMonthSpend;
       spendHistories[String(c.id)] = c.benefitSpending;
     });
-    try {
-      await setDoc(docRef, { lastMonthSpends, spendHistories }, { merge: true });
-    } catch (e) {
-      console.error("Save Error", e);
-    }
+    try { await setDoc(docRef, { lastMonthSpends, spendHistories }, { merge: true }); } catch (e) {}
   };
 
   const handlePrevMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
@@ -517,10 +485,8 @@ export default function App() {
     });
     setCards(newCards);
     saveToCloud(newCards);
-    if (!authError) {
-      setToastMsg('🗑️ 내역이 삭제되었습니다.');
-      setTimeout(() => setToastMsg(''), 1500);
-    }
+    setToastMsg('🗑️ 삭제 완료');
+    setTimeout(() => setToastMsg(''), 1500);
   };
 
   const updateLM = (cardId, val) => {
@@ -536,7 +502,7 @@ export default function App() {
   const totalSpendAll = cards.reduce((sum, card) => sum + (card.id === 3 ? 0 : calculateCurrentSpend(card)), 0);
   const totalSaved = cards.reduce((sum, card) => sum + card.savedAmount, 0);
 
-  // 메인 탭 스와이프 제스처 처리 (사용자 요청에 맞춰 좌/우 이동 완벽 세팅)
+  // --- 메인 스와이프 제스처 처리 (아이폰 대응) ---
   const onMainTouchStart = (e) => {
     setMainTouchEnd(null);
     setMainTouchStart(e.targetTouches[0].clientX);
@@ -548,13 +514,13 @@ export default function App() {
     const tabs = ['cards', 'smartPick', 'home'];
     const currentIndex = tabs.indexOf(activeTab);
     
-    // 왼쪽으로 쓸어넘기면 (손가락이 오른쪽에서 왼쪽으로 이동 -> distance > 40) 이전 페이지로
-    if (distance > 40 && currentIndex > 0) setActiveTab(tabs[currentIndex - 1]); 
-    // 오른쪽으로 쓸어넘기면 (손가락이 왼쪽에서 오른쪽으로 이동 -> distance < -40) 다음 페이지로
-    if (distance < -40 && currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1]); 
+    // 왼쪽 스와이프 (손가락 R->L): 다음 페이지
+    if (distance > 60 && currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1]); 
+    // 오른쪽 스와이프 (손가락 L->R): 이전 페이지
+    if (distance < -60 && currentIndex > 0) setActiveTab(tabs[currentIndex - 1]); 
   };
 
-  // 5. Gemini AI 로직 (검색 금지 및 내부 데이터만 사용하도록 통제 강화)
+  // --- AI 스마트 픽 (내부 데이터만 사용 강제) ---
   const handleSmartPick = async () => {
     if (!aiPickQuery.trim()) return;
     setAiLoading(true);
@@ -562,67 +528,51 @@ export default function App() {
 
     const context = cards.map(c => ({
       name: c.name,
-      benefits: c.detailedBenefits.map(b => ({ title: b.title, rate: b.rate })),
-      spend: Object.values(c.benefitSpending).flat().reduce((s, i) => s + i.amount, 0),
-      target: c.target
+      benefits: c.detailedBenefits.map(b => ({ title: b.title, rate: b.rate, desc: b.desc, extended: b.extendedDesc })),
+      spend: calculateCurrentSpend(c),
+      target: c.target,
+      lm: c.lastMonthSpend
     }));
 
-    const promptText = `질문: ${aiPickQuery}\n\n[보유 카드 상황]\n${JSON.stringify(context)}`;
-    const systemInstruction = `당신은 스마트 카드 비서입니다. 절대 인터넷 외부 웹 검색을 하지 마세요. 오직 제공된 '[보유 카드 상황]' JSON 데이터 안에서만 찾아 100% 기준으로 답변하세요. 외부 정보 사용은 절대 금지됩니다. 사용자의 질문에 맞춰 혜택이 가장 큰 카드 1개를 추천하고, 제공된 데이터를 근거로 3줄 이내로 간결하게 요약하세요.`;
+    const systemInstruction = `당신은 대한민국 카드 전문 비서입니다. 
+규칙: 
+1. 절대로 외부 인터넷 웹사이트를 검색하지 마세요. 
+2. 오직 제공된 [보유 카드 상황] 데이터만 사용하여 답변하세요. 
+3. 사용자의 상황에 가장 혜택이 좋은 카드 1개를 골라 카드 이름과 이유를 3줄 내외로 설명하세요. 
+4. 실적 미달 상태인 카드(lm < target)는 가급적 피하세요.`;
 
     try {
-      const result = await fetchGemini(promptText, systemInstruction);
+      const result = await fetchGemini(`상황: ${aiPickQuery}\n\n[보유 카드 상황]\n${JSON.stringify(context)}`, systemInstruction);
       setAiResponse(result);
-    } catch (e) {
-      setToastMsg("AI 연결 오류 (프롬프트 설정 재확인 중)");
-    } finally { setAiLoading(false); }
+    } catch (e) { setToastMsg("AI 응답 지연중입니다."); } finally { setAiLoading(false); }
   };
 
   const handleAnalysis = async () => {
     setAiLoading(true);
     setAiAnalysisReport(null);
-    const summary = cards.map(c => ({ 
-      name: c.name, 
-      spend: Object.values(c.benefitSpending).flat().reduce((s, i) => s + i.amount, 0), 
-      saved: c.savedAmount 
-    }));
-
+    const summary = cards.map(c => ({ name: c.name, spend: calculateCurrentSpend(c), saved: c.savedAmount }));
     try {
-      const result = await fetchGemini(
-        `소비 요약: ${JSON.stringify(summary)}`,
-        "금융 분석가로서 절대 외부 검색 없이 오직 위의 소비 요약 데이터만 분석하고, 더 효율적인 소비 팁 3가지를 한국어로 제안하세요."
-      );
+      const result = await fetchGemini(`데이터: ${JSON.stringify(summary)}`, "금융 분석가로서 위 데이터만 보고 더 효율적인 카드 사용법 3가지를 한국어로 제안하세요.");
       setAiAnalysisReport(result);
-    } catch (e) {
-      setToastMsg("분석 리포트 오류");
-    } finally { setAiLoading(false); }
+    } catch (e) { setToastMsg("분석 리포트 생성 실패"); } finally { setAiLoading(false); }
   };
 
   // --- 상세 화면 컴포넌트 ---
   const CardDetail = ({ id, onClose }) => {
     const card = cards.find(c => c.id === id);
     const [lmVal, setLmVal] = useState(card?.lastMonthSpend || 0);
-    const scrollRef = useRef(null); 
-    
+    const scrollContainerRef = useRef(null); 
     const [detailTouchStart, setDetailTouchStart] = useState(null);
     const [detailTouchEnd, setDetailTouchEnd] = useState(null);
 
     useEffect(() => {
+      // 카드가 열리자마자 무조건 맨 위로 고정 (아이폰 브라우저 버그 방지)
+      window.scrollTo(0, 0);
+      if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       setLmVal(card?.lastMonthSpend || 0);
-    }, [card?.lastMonthSpend]);
+    }, [id, card?.lastMonthSpend]);
 
-    // 카드가 열릴 때마다 스크롤을 무조건 맨 위로 강제 고정 (애니메이션과 DOM 렌더링 충돌 100% 차단)
-    useEffect(() => {
-      const forceScrollTop = () => {
-        if (scrollRef.current) scrollRef.current.scrollTop = 0;
-      };
-      forceScrollTop(); 
-      const timer1 = setTimeout(forceScrollTop, 50); 
-      const timer2 = setTimeout(forceScrollTop, 350); 
-      return () => { clearTimeout(timer1); clearTimeout(timer2); };
-    }, [id]); 
-
-    // 아이폰 뒤로가기 스와이프 제스처 (왼쪽이든 오른쪽이든 쓸어넘기면 무조건 뒤로가기/닫기)
+    // 아이폰 네이티브 뒤로가기 스와이프 제스처 (왼쪽에서 오른쪽으로 쓸어넘기기)
     const onDetailTouchStart = (e) => {
       setDetailTouchEnd(null);
       setDetailTouchStart(e.targetTouches[0].clientX);
@@ -631,24 +581,19 @@ export default function App() {
     const onDetailTouchEnd = () => {
       if (!detailTouchStart || !detailTouchEnd) return;
       const distance = detailTouchStart - detailTouchEnd;
-      // 좌우 상관없이 40px 이상 강하게 쓸어넘기면 창을 닫음 (가장 직관적이고 확실한 방법)
-      if (Math.abs(distance) > 40) onClose(); 
+      // 손가락이 왼쪽에서 오른쪽으로 50px 이상 이동하면 창 닫기
+      if (distance < -50) onClose(); 
     };
 
-    // 적용된 한도 구하기
     const getAppliedLimit = () => {
       if (!card.limitTable || card.limitTable.length === 0) return "없음";
       let applied = card.limitTable[0].limit;
       let isMetAny = false;
-      
       for (let row of card.limitTable) {
         const numMatch = row.tier.match(/[0-9]+/);
-        if (!numMatch) return row.limit; 
+        if (!numMatch) { applied = row.limit; isMetAny = true; break; }
         const req = parseInt(numMatch[0]) * 10000;
-        if (lmVal >= req) {
-          applied = row.limit;
-          isMetAny = true;
-        }
+        if (lmVal >= req) { applied = row.limit; isMetAny = true; }
       }
       return isMetAny ? applied : "실적 미달 (기본 혜택만 적용)";
     };
@@ -656,13 +601,12 @@ export default function App() {
     if (!card) return null;
 
     return (
-      // 스크롤이 하단에 남는 버그의 원인이었던 absolute를 fixed로 완전히 교체하고 가운데 정렬 유지
       <div 
-        ref={scrollRef} 
+        ref={scrollContainerRef}
         onTouchStart={onDetailTouchStart} onTouchMove={onDetailTouchMove} onTouchEnd={onDetailTouchEnd}
-        className="fixed inset-y-0 w-full max-w-md bg-white z-[100] overflow-y-auto animate-in slide-in-from-right duration-300 custom-scrollbar left-1/2 -translate-x-1/2"
+        className="fixed inset-0 bg-white z-[100] flex flex-col animate-in slide-in-from-right duration-300"
       >
-        <header className="sticky top-0 bg-white/90 backdrop-blur px-5 py-4 border-b flex items-center justify-between z-10">
+        <header className="flex-none bg-white/90 backdrop-blur px-5 py-4 border-b flex items-center justify-between">
           <div className="flex items-center">
             <button onClick={onClose} className="p-2 -ml-2 text-gray-800"><ChevronLeft size={28}/></button>
             <h3 className="ml-2 font-black uppercase text-gray-500 text-xs tracking-widest">상세 관리</h3>
@@ -670,7 +614,7 @@ export default function App() {
           <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">{displayMonthStr}</span>
         </header>
         
-        <div className="p-6">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
           <div className={`${card.color} rounded-[32px] p-6 mb-6 text-white shadow-xl`}>
             <p className="text-[10px] font-black opacity-80 mb-1">{card.company}</p>
             <h2 className="text-xl font-black mb-6 leading-tight">{card.name}</h2>
@@ -681,23 +625,21 @@ export default function App() {
           </div>
 
           <div className="bg-indigo-50 rounded-2xl p-5 mb-6 border border-indigo-100 shadow-inner">
-            <p className="text-[11px] font-black text-indigo-400 mb-2 font-bold uppercase">직전달 실적 기입 (혜택 기준)</p>
+            <p className="text-[11px] font-black text-indigo-400 mb-2 uppercase tracking-tighter">직전달 실적 기입 (혜택 기준)</p>
             <div className="flex items-center space-x-3 mb-4">
               <input type="number" value={lmVal} onChange={e => setLmVal(e.target.value)} onBlur={() => updateLM(id, lmVal)} className="flex-1 bg-white border-2 border-indigo-100 rounded-xl px-4 py-2 font-black text-indigo-700 outline-none shadow-sm"/>
               <span className="font-bold text-indigo-600">원</span>
             </div>
             
-            {/* 카드별 통합 할인 한도 자동 계산 및 하이라이트 표시 UI */}
             <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
               <span className="text-[10px] font-bold text-gray-400 block mb-1">현재 적용된 통합 한도</span>
               <span className="text-[13px] font-black text-indigo-700 leading-tight">{getAppliedLimit()}</span>
             </div>
           </div>
 
-          {/* 통합 할인 한도 전체 표 렌더링 */}
           {card.limitTable && card.limitTable.length > 0 && (
-            <div className="bg-white rounded-2xl p-4 mb-6 border border-gray-100 shadow-sm">
-              <h4 className="font-black text-[13px] text-gray-700 mb-3 flex items-center"><Table size={16} className="mr-1"/> 실적별 통합 할인/적립 한도</h4>
+            <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100 shadow-sm">
+              <h4 className="font-black text-[12px] text-gray-600 mb-3 flex items-center"><Table size={15} className="mr-1.5 text-indigo-500"/> 통합 할인/적립 한도표</h4>
               <div className="space-y-2">
                 {card.limitTable.map((row, idx) => {
                   const numMatch = row.tier.match(/[0-9]+/);
@@ -705,11 +647,10 @@ export default function App() {
                   const nextMatch = idx < card.limitTable.length - 1 ? card.limitTable[idx+1].tier.match(/[0-9]+/) : null;
                   const nextReq = nextMatch ? parseInt(nextMatch[0]) * 10000 : Infinity;
                   const isActive = (card.limitTable.length === 1 && req === 0) || (lmVal >= req && lmVal < nextReq);
-
                   return (
-                    <div key={idx} className={`flex justify-between items-center p-2 rounded-lg text-xs font-bold ${isActive ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'text-gray-400 bg-gray-50'}`}>
+                    <div key={idx} className={`flex justify-between items-center p-2 rounded-lg text-xs font-bold ${isActive ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'text-gray-400 bg-white border border-gray-50'}`}>
                       <span>{row.tier}</span>
-                      <span className="text-right flex-1 ml-4">{row.limit}</span>
+                      <span className="text-right flex-1 ml-4 text-[11px]">{row.limit}</span>
                       {isActive && <span className="ml-2 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded shrink-0">적용중</span>}
                     </div>
                   );
@@ -718,8 +659,7 @@ export default function App() {
             </div>
           )}
 
-          {/* 쓸데없는 하단 빈 공간 (pb-12 -> 삭제) 없애고 딱 맞게 설정 */}
-          <div className="space-y-4">
+          <div className="space-y-4 pb-12">
             <h4 className="font-black text-lg flex items-center border-b pb-2"><Receipt size={20} className="mr-2 text-indigo-600"/> 혜택별 지출 입력</h4>
             {card.detailedBenefits.map(db => {
               const isActive = card.lastMonthSpend >= db.minSpend;
@@ -730,23 +670,19 @@ export default function App() {
 
               return (
                 <div key={db.id} className={isActive ? "opacity-100" : "opacity-30 grayscale pointer-events-none"}>
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="flex justify-between items-start mb-1">
                     <div className="flex-1 pr-4">
                       <h5 className="font-black text-[15px] leading-snug">{db.title}</h5>
-                      <p className="text-xs text-gray-500 mt-0.5">{db.desc}</p>
-                      {db.extendedDesc && <p className="text-[10px] text-gray-400 mt-1 leading-relaxed break-keep">ℹ {db.extendedDesc}</p>}
+                      <p className="text-[11px] text-gray-500">{db.desc}</p>
+                      {db.extendedDesc && <p className="text-[10px] text-gray-400 mt-1 leading-relaxed border-l-2 border-indigo-100 pl-2">ℹ {db.extendedDesc}</p>}
                     </div>
                     {isActive ? <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold shrink-0 mt-1">적용중</span> : <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full font-bold shrink-0 mt-1">{formatWon(db.minSpend)}↑ 필요</span>}
                   </div>
                   {isActive && (
-                    <div className="mt-4 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-inner">
+                    <div className="mt-3 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-inner">
                       <div className="flex justify-between mb-3 items-center">
-                        <span className="text-[10px] font-black text-gray-400">
-                          {card.id === 3 ? `항목 합계: ${sum}회` : `항목 합계: ${formatWon(sum)}`}
-                        </span>
-                        {card.id !== 3 && (
-                          <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">예상 혜택: {formatWon(sum * db.rate)}</span>
-                        )}
+                        <span className="text-[10px] font-black text-gray-400">{card.id === 3 ? `항목 합계: ${sum}회` : `항목 합계: ${formatWon(sum)}`}</span>
+                        {card.id !== 3 && <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">예상 혜택: {formatWon(sum * db.rate)}</span>}
                       </div>
                       
                       {hist.length > 0 && (
@@ -756,9 +692,7 @@ export default function App() {
                               <span className="text-gray-400 text-[10px]">{h.date}</span>
                               <div className="flex items-center space-x-3">
                                 <span className="font-black text-gray-700">{card.id === 3 ? `${h.amount}회` : formatWon(h.amount)}</span>
-                                <button onClick={() => deleteSpending(id, db.id, h.id)} className="text-gray-300 hover:text-red-500 transition-colors">
-                                  <Trash2 size={16}/>
-                                </button>
+                                <button onClick={() => deleteSpending(id, db.id, h.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
                               </div>
                             </div>
                           ))}
@@ -768,11 +702,11 @@ export default function App() {
                       <div className="flex space-x-2">
                         {card.id === 3 ? (
                           <>
-                            <input type="date" value={customDate} onChange={e => setCustomDate(e.target.value)} className="w-1/2 px-3 py-2 rounded-xl text-sm border-none bg-white font-bold outline-none"/>
-                            <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="횟수" className="w-1/2 px-3 py-2 rounded-xl text-sm border-none bg-white font-bold outline-none"/>
+                            <input type="date" value={customDate} onChange={e => setCustomDate(e.target.value)} className="w-1/2 px-3 py-2 rounded-xl text-xs border-none bg-white font-bold outline-none"/>
+                            <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="횟수" className="w-1/2 px-3 py-2 rounded-xl text-xs border-none bg-white font-bold outline-none"/>
                           </>
                         ) : (
-                          <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="새로운 금액 입력" className="flex-1 px-4 py-2 rounded-xl text-sm border-none bg-white font-bold outline-none"/>
+                          <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="지출 금액 입력" className="flex-1 px-4 py-2 rounded-xl text-xs border-none bg-white font-bold outline-none"/>
                         )}
                         <button onClick={() => { addSpending(id, db.id, amt, card.id === 3 ? customDate : null); setAmt(''); }} className="bg-indigo-600 text-white p-2 rounded-xl active:scale-90 transition-transform"><Plus/></button>
                       </div>
@@ -792,24 +726,22 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex justify-center font-sans">
+    <div className="min-h-screen bg-gray-50 flex justify-center font-sans select-none overflow-hidden">
       <div 
-        className="w-full max-w-md bg-white min-h-screen flex flex-col relative shadow-2xl overflow-hidden border-x"
+        className="w-full max-w-md bg-white h-screen flex flex-col relative shadow-2xl border-x"
         onTouchStart={onMainTouchStart} onTouchMove={onMainTouchMove} onTouchEnd={onMainTouchEnd}
       >
         {authError && (
-          <div className="bg-red-50 text-red-600 text-[11px] font-bold px-4 py-2 text-center flex justify-center items-center relative z-30">
+          <div className="bg-red-50 text-red-600 text-[11px] font-bold px-4 py-2 text-center flex justify-center items-center z-30">
             <AlertTriangle size={14} className="mr-1"/> Firebase 설정 전이라 데이터가 클라우드에 저장되지 않습니다.
           </div>
         )}
 
-        <header className="px-6 pt-12 pb-4 bg-white sticky top-0 z-20 flex justify-between items-center border-b">
+        <header className="px-6 pt-12 pb-4 bg-white border-b flex justify-between items-center z-20">
           <h1 className="text-xl font-black tracking-tight">Smart<span className="text-indigo-600">Card</span></h1>
           <div className="flex items-center space-x-3">
             {user?.isAnonymous || !user ? (
-              <button onClick={handleGoogleLogin} className="flex items-center text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold hover:bg-indigo-100 transition">
-                <LogIn size={12} className="mr-1"/> 가족 연동
-              </button>
+              <button onClick={handleGoogleLogin} className="flex items-center text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold hover:bg-indigo-100 transition"><LogIn size={12} className="mr-1"/> 가족 연동</button>
             ) : (
               <div className="flex items-center space-x-2">
                 <span className="text-[10px] font-bold text-gray-600">{user?.displayName?.split(' ')[0] || '사용자'}님</span>
@@ -819,43 +751,30 @@ export default function App() {
           </div>
         </header>
 
-        <div className="bg-gray-50 px-6 py-3 border-b border-gray-100 flex justify-between items-center z-10 sticky top-[73px]">
-          <button onClick={handlePrevMonth} className="p-1.5 bg-white rounded-lg shadow-sm text-gray-500 hover:text-indigo-600 active:scale-95 transition">
-            <ChevronLeft size={18}/>
-          </button>
-          <div className="flex items-center space-x-2 text-indigo-700 font-black">
-            <CalendarDays size={18}/>
-            <span>{displayMonthStr}</span>
-          </div>
-          <button onClick={handleNextMonth} className="p-1.5 bg-white rounded-lg shadow-sm text-gray-500 hover:text-indigo-600 active:scale-95 transition">
-            <ChevronRight size={18}/>
-          </button>
+        <div className="bg-gray-50 px-6 py-3 border-b flex justify-between items-center z-10">
+          <button onClick={handlePrevMonth} className="p-1.5 bg-white rounded-lg shadow-sm active:scale-95 transition"><ChevronLeft size={18}/></button>
+          <div className="flex items-center space-x-2 text-indigo-700 font-black"><CalendarDays size={18}/><span>{displayMonthStr}</span></div>
+          <button onClick={handleNextMonth} className="p-1.5 bg-white rounded-lg shadow-sm active:scale-95 transition"><ChevronRight size={18}/></button>
         </div>
 
         <main className="flex-1 overflow-y-auto px-6 pb-32 custom-scrollbar">
-          {isSyncing && <div className="absolute top-32 left-1/2 -translate-x-1/2 bg-gray-900/80 text-white px-4 py-2 rounded-full text-xs font-bold flex items-center z-50"><RefreshCw size={14} className="animate-spin mr-2"/>월 데이터 로딩중</div>}
-          
           {activeTab === 'cards' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-left duration-500 pt-4">
-              <div className="flex justify-between items-end"><h2 className="text-2xl font-black">내 카드 지갑</h2><span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest font-bold">Manage</span></div>
+            <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-left duration-300">
+              <div className="flex justify-between items-end"><h2 className="text-2xl font-black">내 카드 지갑</h2><span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Manage</span></div>
               <div className="space-y-4">
                 {cards.map(c => {
                   const s = calculateCurrentSpend(c);
                   const met = c.target === 0 || s >= c.target;
                   return (
-                    <div key={c.id} onClick={() => setSelectedDetailCardId(c.id)} className="bg-white rounded-[28px] p-5 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer hover:shadow-md">
+                    <div key={c.id} onClick={() => setSelectedDetailCardId(c.id)} className="bg-white rounded-[28px] p-5 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer">
                       <div className="flex items-center space-x-4">
                         <div className={`${c.color} w-16 h-10 rounded-xl shadow-inner relative overflow-hidden`}><div className="absolute top-0 right-0 w-6 h-6 bg-white/20 rounded-full -mr-3 -mt-3 blur-md"></div></div>
-                        <div className="flex-1"><p className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none">{c.company}</p><h3 className="font-black text-[15px] leading-tight mt-1">{c.name}</h3></div>
+                        <div className="flex-1"><p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">{c.company}</p><h3 className="font-black text-[15px] leading-tight mt-1">{c.name}</h3></div>
                         <ChevronRight className="text-gray-300"/>
                       </div>
                       <div className="mt-4 pt-4 border-t flex justify-between items-center border-gray-50">
-                        <span className="text-[11px] font-black text-gray-400">
-                          {c.id === 3 ? `이번 달 기록: ${getCardCountSum(c)}회` : `이번 달 사용: ${formatWon(s)}`}
-                        </span>
-                        <span className={`text-[11px] font-black ${met ? 'text-green-500' : 'text-indigo-500'}`}>
-                          {c.id === 3 ? '기록 중' : (met ? '실적 달성' : `부족 ${formatWon(c.target - s)}`)}
-                        </span>
+                        <span className="text-[11px] font-black text-gray-400">{c.id === 3 ? `이번 달: ${getCardCountSum(c)}회` : `이번 달: ${formatWon(s)}`}</span>
+                        <span className={`text-[11px] font-black ${met ? 'text-green-500' : 'text-indigo-500'}`}>{c.id === 3 ? '기록 중' : (met ? '실적 달성' : `부족 ${formatWon(c.target - s)}`)}</span>
                       </div>
                     </div>
                   );
@@ -865,59 +784,30 @@ export default function App() {
           )}
 
           {activeTab === 'smartPick' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom duration-500 pt-4">
-              <div className="flex flex-col space-y-2 mb-4">
-                <h2 className="text-2xl font-black tracking-tight">✨ AI 스마트 픽</h2>
-                <p className="text-xs text-gray-400 font-medium leading-relaxed">질문을 입력하면 AI가 실적과 혜택을 분석하여 최적의 카드를 골라줍니다.</p>
+            <div className="space-y-6 pt-4 animate-in fade-in duration-300">
+              <h2 className="text-2xl font-black">✨ AI 스마트 픽</h2>
+              <p className="text-xs text-gray-400 font-medium">내 카드의 혜택 정보를 바탕으로 AI가 최적의 카드를 골라줍니다.</p>
+              <div className="bg-indigo-50 rounded-3xl p-5 border border-indigo-100 shadow-inner flex items-center space-x-2">
+                <input type="text" value={aiPickQuery} onChange={e => setAiPickQuery(e.target.value)} placeholder="예: 오늘 점심에 뭐 쓸까?" className="flex-1 px-4 py-2 text-sm border-none bg-white rounded-xl outline-none" onKeyPress={e => e.key === 'Enter' && handleSmartPick()}/>
+                <button onClick={handleSmartPick} disabled={aiLoading} className="bg-indigo-600 text-white p-2 rounded-xl active:scale-90">{aiLoading ? <Loader2 className="animate-spin" size={20}/> : <Send size={20}/>}</button>
               </div>
-
-              <div className="bg-indigo-50 rounded-3xl p-5 border border-indigo-100 shadow-inner">
-                <div className="flex items-center space-x-2 bg-white rounded-2xl p-2 pr-3 shadow-sm focus-within:ring-2 focus-within:ring-indigo-400 transition-all">
-                  <input 
-                    type="text" 
-                    value={aiPickQuery} 
-                    onChange={e => setAiPickQuery(e.target.value)} 
-                    placeholder="예: 오늘 점심 먹으러 갈 건데 뭐 쓸까?" 
-                    className="flex-1 px-4 py-2 text-sm border-none bg-transparent outline-none font-medium"
-                    onKeyPress={e => e.key === 'Enter' && handleSmartPick()}
-                  />
-                  <button onClick={handleSmartPick} disabled={aiLoading} className="bg-indigo-600 text-white p-2 rounded-xl disabled:opacity-50 transition-all active:scale-90">
-                    {aiLoading ? <Loader2 className="animate-spin" size={20}/> : <Send size={20}/>}
-                  </button>
-                </div>
-              </div>
-
-              {aiResponse && (
-                <div className="bg-white border border-indigo-100 rounded-3xl p-6 shadow-lg animate-in zoom-in duration-300">
-                  <div className="flex items-center space-x-2 mb-4"><BrainCircuit className="text-indigo-600" size={24}/><h3 className="font-black text-gray-800">AI 추천 결과</h3></div>
-                  <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-medium markdown-body">{aiResponse}</div>
-                </div>
-              )}
+              {aiResponse && <div className="bg-white border border-indigo-100 rounded-3xl p-6 shadow-lg animate-in zoom-in duration-300 text-sm text-gray-700 leading-relaxed font-medium markdown-body whitespace-pre-wrap">{aiResponse}</div>}
             </div>
           )}
 
           {activeTab === 'home' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right duration-500 pt-4">
-              <div className="bg-indigo-600 rounded-[40px] p-8 text-white shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+            <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-right duration-300">
+              <div className="bg-indigo-600 rounded-[40px] p-8 text-white shadow-xl">
                 <p className="text-[10px] font-black uppercase opacity-70 mb-2 tracking-widest">{displayMonthStr} Report</p>
                 <p className="text-[10px] font-bold opacity-60">통합 총 지출액</p>
                 <h3 className="text-4xl font-black mb-6 tracking-tight mt-1">{formatWon(totalSpendAll)}</h3>
-                <div className="flex items-center bg-white/20 w-fit px-4 py-2 rounded-2xl backdrop-blur-md border border-white/20">
+                <div className="flex items-center bg-white/20 w-fit px-4 py-2 rounded-2xl border border-white/20">
                   <TrendingUp size={18} className="mr-2"/><span className="text-sm font-black">누적 혜택: {formatWon(totalSaved)}</span>
                 </div>
               </div>
-
               <div className="bg-white border rounded-3xl p-6 shadow-sm">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-black flex items-center text-gray-800 tracking-tight">✨ AI 소비 습관 분석</h3>
-                  <button onClick={handleAnalysis} disabled={aiLoading} className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-bold text-xs flex items-center hover:bg-indigo-100 transition-colors">
-                    {aiLoading ? <Loader2 className="animate-spin mr-1" size={14}/> : <RefreshCw className="mr-1" size={14}/>}리포트 생성
-                  </button>
-                </div>
-                {analysisReport && (
-                  <div className="text-sm text-gray-700 leading-relaxed font-medium bg-gray-50 p-5 rounded-2xl whitespace-pre-wrap animate-in fade-in duration-700 markdown-body">{analysisReport}</div>
-                )}
+                <div className="flex justify-between items-center mb-6"><h3 className="font-black flex items-center text-gray-800">✨ AI 소비 습관 분석</h3><button onClick={handleAnalysis} disabled={aiLoading} className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-bold text-xs flex items-center">{aiLoading ? <Loader2 className="animate-spin mr-1" size={14}/> : <RefreshCw className="mr-1" size={14}/>}리포트</button></div>
+                {analysisReport && <div className="text-sm text-gray-700 leading-relaxed font-medium bg-gray-50 p-5 rounded-2xl markdown-body whitespace-pre-wrap">{analysisReport}</div>}
               </div>
             </div>
           )}
@@ -929,18 +819,23 @@ export default function App() {
           <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center transition-all ${activeTab === 'home' ? 'text-indigo-600 scale-110' : 'text-gray-300'}`}><Home/><span className="text-[10px] font-black mt-1 uppercase tracking-tighter">REPORT</span></button>
         </nav>
 
-        {selectedDetailCardId && <CardDetail key={selectedDetailCardId} id={selectedDetailCardId} onClose={() => setSelectedDetailCardId(null)}/>}
-        {toastMsg && <div className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl text-xs font-bold shadow-2xl z-50 animate-in slide-in-from-bottom-4 text-center leading-relaxed whitespace-pre-wrap">{toastMsg}</div>}
+        {selectedDetailCardId && (
+          <CardDetail 
+            key={selectedDetailCardId} 
+            id={selectedDetailCardId} 
+            onClose={() => setSelectedDetailCardId(null)}
+          />
+        )}
+        
+        {toastMsg && <div className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl text-xs font-bold shadow-2xl z-[200] animate-in slide-in-from-bottom-4 text-center leading-relaxed whitespace-pre-wrap">{toastMsg}</div>}
       </div>
       <style>{`
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         .custom-scrollbar::-webkit-scrollbar { width: 0px; background: transparent; }
-        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         body { -webkit-tap-highlight-color: transparent; }
         input:focus { outline: none; }
         .markdown-body ul { list-style-type: disc; padding-left: 20px; margin-top: 10px; }
         .markdown-body b { font-weight: 800; }
-        .markdown-body p { margin-bottom: 10px; }
       `}</style>
     </div>
   );
