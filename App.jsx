@@ -23,7 +23,13 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
+
+// 구글 로그인 시 항상 계정 선택 창이 뜨도록 설정 추가
 const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
+
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-card-manager-v1';
 
 // --- Gemini API Setup ---
@@ -55,7 +61,7 @@ const fetchGemini = async (prompt, systemInstruction) => {
   }
 };
 
-// --- 카드 데이터 세트 (11종 전체 데이터) ---
+// --- 카드 데이터 세트 (12종 전체 데이터) ---
 const INITIAL_CARDS = [
   {
     id: 1,
@@ -231,7 +237,7 @@ const INITIAL_CARDS = [
   },
   {
     id: 5,
-    name: '국민 톡톡 my point',
+    name: '국민 톡톡 my point (박상훈)',
     company: 'KB국민카드',
     type: '포인트형',
     color: 'bg-orange-500',
@@ -242,8 +248,25 @@ const INITIAL_CARDS = [
     savedAmount: 0,
     limitTable: [{ tier: '무실적', limit: 'KB Pay 추가 1만점' }],
     detailedBenefits: [
-      { id: 'kb_tok1', icon: <Globe />, title: '기본 0.5% 적립', desc: '전 가맹점 무실적 무제한', minSpend: 0, rate: 0.005 },
-      { id: 'kb_tok2', icon: <Smartphone />, title: 'KB Pay 5% 추가 적립', desc: 'KB Pay 결제 시', minSpend: 0, rate: 0.05 }
+      { id: 'kb_tok1_p', icon: <Globe />, title: '기본 0.5% 적립', desc: '전 가맹점 무실적 무제한', minSpend: 0, rate: 0.005 },
+      { id: 'kb_tok2_p', icon: <Smartphone />, title: 'KB Pay 5% 추가 적립', desc: 'KB Pay 결제 시', minSpend: 0, rate: 0.05 }
+    ]
+  },
+  {
+    id: 12,
+    name: '국민 톡톡 my point (김민정)',
+    company: 'KB국민카드',
+    type: '포인트형',
+    color: 'bg-orange-500',
+    textColor: 'text-white',
+    target: 0,
+    lastMonthSpend: 0,
+    benefitSpending: {},
+    savedAmount: 0,
+    limitTable: [{ tier: '무실적', limit: 'KB Pay 추가 1만점' }],
+    detailedBenefits: [
+      { id: 'kb_tok1_k', icon: <Globe />, title: '기본 0.5% 적립', desc: '전 가맹점 무실적 무제한', minSpend: 0, rate: 0.005 },
+      { id: 'kb_tok2_k', icon: <Smartphone />, title: 'KB Pay 5% 추가 적립', desc: 'KB Pay 결제 시', minSpend: 0, rate: 0.05 }
     ]
   }
 ];
@@ -255,7 +278,7 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState('');
   const [user, setUser] = useState(null);
   const [isSyncing, setIsSyncing] = useState(true);
-  const [authError, setAuthError] = useState(false); // 인증 에러 처리용 상태
+  const [authError, setAuthError] = useState(false); 
 
   // AI 관련 상태
   const [aiLoading, setAiLoading] = useState(false);
@@ -279,14 +302,14 @@ export default function App() {
         }
       } catch (err) {
         console.error("Auth Init Error", err);
-        setAuthError(true); // 에러 상태를 true로 변경
+        setAuthError(true); 
         
         if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
           setToastMsg('Firebase 인증 설정이 아직 완료되지 않아 로컬 모드로 작동합니다.');
         } else {
           setToastMsg('인증 초기화 실패로 로컬 모드로 작동합니다.');
         }
-        setIsSyncing(false); // 동기화 로딩 화면 해제
+        setIsSyncing(false);
       }
     };
     initAuth();
@@ -301,15 +324,18 @@ export default function App() {
   // 구글 로그인 처리
   const handleGoogleLogin = async () => {
     try {
+      // 팝업이 차단되었거나 설정이 잘못된 경우를 위한 에러 핸들링 추가
       await signInWithPopup(auth, googleProvider);
       setToastMsg('🎉 구글 로그인 성공! 가족과 연동되었습니다.');
-      setAuthError(false); // 로그인 성공 시 에러 상태 해제
+      setAuthError(false); 
     } catch (error) {
-      console.error(error);
-      if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
+      console.error("구글 로그인 에러:", error);
+      if (error.code === 'auth/popup-blocked') {
+        setToastMsg('🚫 브라우저 팝업이 차단되었습니다. 팝업 차단을 해제하거나 Vercel 주소로 직접 접속해주세요.');
+      } else if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
         setToastMsg('⚠️ Firebase 콘솔에서 Google 로그인 제공업체를 먼저 활성화해주세요.');
       } else {
-        setToastMsg('구글 로그인에 실패했습니다.');
+        setToastMsg(`구글 로그인 실패: ${error.message.split(' (')[0]}`); // 구체적인 에러 메시지 표시
       }
     }
     setTimeout(() => setToastMsg(''), 4000);
@@ -328,13 +354,12 @@ export default function App() {
   // 2. 월별 데이터 구독 (Firestore)
   useEffect(() => {
     if (!user || authError) {
-      setIsSyncing(false); // 인증 에러가 있거나 유저가 없으면 대기하지 않음
+      setIsSyncing(false); 
       return; 
     }
     
     setIsSyncing(true);
     
-    // 월별 데이터를 저장하는 컬렉션 경로
     const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'monthly_data', currentMonthStr);
     
     const unsubscribe = onSnapshot(docRef, (snapshot) => {
@@ -362,7 +387,6 @@ export default function App() {
           };
         }));
       } else {
-        // 해당 월에 데이터가 없으면 초기화
         setCards(INITIAL_CARDS.map(c => ({
           ...c,
           lastMonthSpend: 0,
@@ -408,12 +432,13 @@ export default function App() {
   };
 
   // 4. 지출 관리 및 업데이트
-  const addSpending = (cardId, benefitId, amount) => {
+  const addSpending = (cardId, benefitId, amount, customDate = null) => {
     if (!amount || amount <= 0) return;
     const newCards = cards.map(card => {
       if (card.id === cardId) {
         const hist = card.benefitSpending[benefitId] || [];
-        const newHist = [...hist, { id: Date.now(), amount: parseInt(amount), date: new Date().toLocaleDateString() }];
+        const dateStr = customDate ? customDate : new Date().toLocaleDateString();
+        const newHist = [...hist, { id: Date.now(), amount: parseInt(amount), date: dateStr }];
         const rate = card.detailedBenefits.find(b => b.id === benefitId)?.rate || 0;
         return {
           ...card,
@@ -467,7 +492,8 @@ export default function App() {
 
   const formatWon = (n) => new Intl.NumberFormat('ko-KR').format(n) + '원';
   const calculateCurrentSpend = (card) => Object.values(card.benefitSpending).flat().reduce((s, i) => s + i.amount, 0);
-  const totalSpendAll = cards.reduce((sum, card) => sum + calculateCurrentSpend(card), 0);
+  const getCardCountSum = (card) => Object.values(card.benefitSpending).flat().reduce((s, i) => s + i.amount, 0);
+  const totalSpendAll = cards.reduce((sum, card) => sum + (card.id === 3 ? 0 : calculateCurrentSpend(card)), 0);
   const totalSaved = cards.reduce((sum, card) => sum + card.savedAmount, 0);
 
   // 5. Gemini AI 로직
@@ -540,7 +566,7 @@ export default function App() {
             <p className="text-[10px] font-black opacity-80 mb-1">{card.company}</p>
             <h2 className="text-xl font-black mb-6 leading-tight">{card.name}</h2>
             <div className="flex justify-between items-end">
-              <div><p className="text-[10px] font-black opacity-70">이번 달 사용</p><p className="text-2xl font-black">{formatWon(calculateCurrentSpend(card))}</p></div>
+              <div><p className="text-[10px] font-black opacity-70">이번 달 사용</p><p className="text-2xl font-black">{card.id === 3 ? `${getCardCountSum(card)}회` : formatWon(calculateCurrentSpend(card))}</p></div>
               <div className="text-right"><p className="text-[10px] font-black opacity-70">누적 혜택</p><p className="text-lg font-black">{formatWon(card.savedAmount)}</p></div>
             </div>
           </div>
@@ -558,6 +584,7 @@ export default function App() {
             {card.detailedBenefits.map(db => {
               const isActive = card.lastMonthSpend >= db.minSpend;
               const [amt, setAmt] = useState('');
+              const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
               const hist = card.benefitSpending[db.id] || [];
               const sum = hist.reduce((s, h) => s + h.amount, 0);
 
@@ -570,8 +597,12 @@ export default function App() {
                   {isActive && (
                     <div className="mt-4 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-inner">
                       <div className="flex justify-between mb-3 items-center">
-                        <span className="text-[10px] font-black text-gray-400">항목 합계: {formatWon(sum)}</span>
-                        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">예상 혜택: {formatWon(sum * db.rate)}</span>
+                        <span className="text-[10px] font-black text-gray-400">
+                          {card.id === 3 ? `항목 합계: ${sum}회` : `항목 합계: ${formatWon(sum)}`}
+                        </span>
+                        {card.id !== 3 && (
+                          <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">예상 혜택: {formatWon(sum * db.rate)}</span>
+                        )}
                       </div>
                       
                       {/* 지출 내역 목록 및 삭제 버튼 */}
@@ -581,7 +612,7 @@ export default function App() {
                             <div key={h.id} className="flex justify-between items-center text-xs bg-white border border-gray-200 p-2 rounded-xl">
                               <span className="text-gray-400 text-[10px]">{h.date}</span>
                               <div className="flex items-center space-x-3">
-                                <span className="font-black text-gray-700">{formatWon(h.amount)}</span>
+                                <span className="font-black text-gray-700">{card.id === 3 ? `${h.amount}회` : formatWon(h.amount)}</span>
                                 <button onClick={() => deleteSpending(id, db.id, h.id)} className="text-gray-300 hover:text-red-500 transition-colors">
                                   <Trash2 size={16}/>
                                 </button>
@@ -593,8 +624,15 @@ export default function App() {
 
                       {/* 입력창 */}
                       <div className="flex space-x-2">
-                        <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="새로운 금액 입력" className="flex-1 px-4 py-2 rounded-xl text-sm border-none bg-white font-bold outline-none"/>
-                        <button onClick={() => { addSpending(id, db.id, amt); setAmt(''); }} className="bg-indigo-600 text-white p-2 rounded-xl active:scale-90 transition-transform"><Plus/></button>
+                        {card.id === 3 ? (
+                          <>
+                            <input type="date" value={customDate} onChange={e => setCustomDate(e.target.value)} className="w-1/2 px-3 py-2 rounded-xl text-sm border-none bg-white font-bold outline-none"/>
+                            <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="횟수" className="w-1/2 px-3 py-2 rounded-xl text-sm border-none bg-white font-bold outline-none"/>
+                          </>
+                        ) : (
+                          <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="새로운 금액 입력" className="flex-1 px-4 py-2 rounded-xl text-sm border-none bg-white font-bold outline-none"/>
+                        )}
+                        <button onClick={() => { addSpending(id, db.id, amt, card.id === 3 ? customDate : null); setAmt(''); }} className="bg-indigo-600 text-white p-2 rounded-xl active:scale-90 transition-transform"><Plus/></button>
                       </div>
                     </div>
                   )}
@@ -669,8 +707,12 @@ export default function App() {
                         <ChevronRight className="text-gray-300"/>
                       </div>
                       <div className="mt-4 pt-4 border-t flex justify-between items-center border-gray-50">
-                        <span className="text-[11px] font-black text-gray-400">이번 달 사용: {formatWon(s)}</span>
-                        <span className={`text-[11px] font-black ${met ? 'text-green-500' : 'text-indigo-500'}`}>{met ? '실적 달성' : `부족 ${formatWon(c.target - s)}`}</span>
+                        <span className="text-[11px] font-black text-gray-400">
+                          {c.id === 3 ? `이번 달 기록: ${getCardCountSum(c)}회` : `이번 달 사용: ${formatWon(s)}`}
+                        </span>
+                        <span className={`text-[11px] font-black ${met ? 'text-green-500' : 'text-indigo-500'}`}>
+                          {c.id === 3 ? '기록 중' : (met ? '실적 달성' : `부족 ${formatWon(c.target - s)}`)}
+                        </span>
                       </div>
                     </div>
                   );
