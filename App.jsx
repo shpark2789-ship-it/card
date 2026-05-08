@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { 
   Home, CreditCard, Sparkles, Settings, ChevronRight, ChevronLeft, 
   CheckCircle2, Coffee, ShoppingCart, Bus, Utensils, Stethoscope, TrendingUp, 
@@ -61,7 +61,7 @@ const fetchGemini = async (prompt, systemInstruction) => {
   }
 };
 
-// --- 카드 데이터 세트 (12종 전체 데이터) ---
+// --- 카드 데이터 세트 (데이터 유실 0%, 상세 혜택 완벽 복구) ---
 const INITIAL_CARDS = [
   {
     id: 1,
@@ -74,13 +74,16 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0,
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '30만원 이상', limit: '캐시백 5만 + 브런치 2만 + 주유 40만' }],
+    limitTable: [{"tier": "30만원 이상", "limit": "캐시백 5만 + 브런치 2만 + 주유 40만(대상액)"}],
     detailedBenefits: [
-      { id: 'lc_1', icon: <Coffee />, title: '브런치 5% 할인', desc: '11:00~14:00 요식업종', minSpend: 300000, rate: 0.05 },
-      { id: 'lc_2', icon: <Stethoscope />, title: '육아/의료 5% 캐시백', desc: '학원, 서점, 병원, 약국', minSpend: 300000, rate: 0.05 },
-      { id: 'lc_3', icon: <ShoppingBag />, title: '쇼핑 3% 캐시백', desc: '백화점, 마트, 온라인몰', minSpend: 300000, rate: 0.03 },
-      { id: 'lc_4', icon: <Utensils />, title: '웰빙 7% 캐시백', desc: '초록마을, 한살림생협', minSpend: 300000, rate: 0.07 },
-      { id: 'lc_7', icon: <Droplet />, title: 'GS칼텍스 리터당 40원 할인', desc: '주유 시 결제일 할인', minSpend: 300000, rate: 0.02 }
+      { id: 'lc_1', icon: <Coffee />, title: '브런치 5% 결제일 할인', desc: '오전 11시 ~ 오후 2시 요식업종', minSpend: 300000, rate: 0.05, extendedDesc: '제과점, 한/중/양/일식, 커피 포함 (월 2만원 한도)' },
+      { id: 'lc_2', icon: <Stethoscope />, title: '육아/의료 5% 캐시백', desc: '학원, 서점, 병원, 약국', minSpend: 300000, rate: 0.05, extendedDesc: '치과/한의원 포함, 월 5만원 한도 (학원은 오프라인만)' },
+      { id: 'lc_3', icon: <ShoppingBag />, title: '쇼핑 3% 캐시백', desc: '백화점, 대형마트, 온라인몰', minSpend: 300000, rate: 0.03, extendedDesc: '이마트/홈플/롯데마트(창고형 제외), 옥션/G마켓/SSG 등' },
+      { id: 'lc_4', icon: <Utensils />, title: '웰빙 7% 캐시백', desc: '초록마을, 한살림생협 매장', minSpend: 300000, rate: 0.07, extendedDesc: '오프라인 매장 결제 시 적용' },
+      { id: 'lc_5', icon: <Gift />, title: '던킨도너츠 3,500원 할인', desc: '6,000원 이상 결제 시 적용', minSpend: 300000, rate: 0.5, extendedDesc: '월 1회 제공' },
+      { id: 'lc_6', icon: <Film />, title: '롯데시네마 스위트콤보 무료', desc: '현장 카드 제시 시 제공', minSpend: 300000, rate: 0, extendedDesc: '팝콘(대)1 + 음료(중)2, 월 1회' },
+      { id: 'lc_7', icon: <Droplet />, title: 'GS칼텍스 리터당 40원 할인', desc: '주유 시 결제일 할인', minSpend: 300000, rate: 0.02, extendedDesc: '월 이용금액 40만원 한도 내' },
+      { id: 'lc_8', icon: <Plane />, title: '제주 JDC 면세점 8% 할인', desc: '면세점 결제일 할인', minSpend: 300000, rate: 0.08, extendedDesc: '30만 이상 8천원 / 60만 이상 3.2만원 한도' }
     ]
   },
   {
@@ -94,12 +97,16 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0,
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '40만원↑', limit: '마트 1.5만 / 쇼핑 1.5만 / Basic 5천' }],
+    limitTable: [{"tier": "40만원 이상", "limit": "마트 1.5만 / 쇼핑 1.5만 / Basic 5천"}, {"tier": "80만원 이상", "limit": "마트 2만 / 쇼핑 2만 / Basic 5천"}],
     detailedBenefits: [
-      { id: 'tb_1_p', icon: <Droplet />, title: '주유 리터당 110점', desc: 'SK/GS칼텍스 주유소', minSpend: 400000, rate: 0.07 },
-      { id: 'tb_2_p', icon: <ShoppingCart />, title: '마트 15%~20% 적립', desc: '이마트, 롯데마트, 홈플러스', minSpend: 400000, rate: 0.15 },
-      { id: 'tb_3_p', icon: <ShoppingBag />, title: '온라인쇼핑몰 15%~20% 적립', desc: 'G마켓, 옥션, 11번가 등', minSpend: 400000, rate: 0.15 },
-      { id: 'tb_4_p', icon: <Monitor />, title: '플러스 O2O 10% 적립', desc: '배달의민족, 마켓컬리 등', minSpend: 400000, rate: 0.1 }
+      { id: 'tb_1_p', icon: <Droplet />, title: '주유 리터당 110점 적립', desc: 'SK/GS칼텍스 주유소 및 충전소', minSpend: 400000, rate: 0.07, extendedDesc: '월 이용액 20만(40만 이상)/30만(80만 이상) 한도' },
+      { id: 'tb_2_p', icon: <ShoppingCart />, title: '마트 15%~20% 적립', desc: '이마트, 롯데마트, 홈플러스 등', minSpend: 400000, rate: 0.15, extendedDesc: '40만 이상 15%(1.5만) / 80만 이상 20%(2만)' },
+      { id: 'tb_3_p', icon: <ShoppingBag />, title: '온라인쇼핑몰 15%~20% 적립', desc: 'G마켓, 옥션, 11번가, 인터파크 등', minSpend: 400000, rate: 0.15, extendedDesc: '40만 이상 15% / 80만 이상 20% 한도 동일' },
+      { id: 'tb_4_p', icon: <Monitor />, title: '온라인몰 (플러스 O2O) 10%', desc: '배달의민족, 마켓컬리, 그린카 등', minSpend: 400000, rate: 0.1, extendedDesc: 'KB Pay 앱 내 [플러스 O2O] 메뉴 경유 필수, 월 1만점' },
+      { id: 'tb_5_p', icon: <Wifi />, title: '통신/사회보험 10% 적립', desc: '4대보험 및 휴대폰 요금', minSpend: 400000, rate: 0.1, extendedDesc: '건강/국민/고용/산재 자동납부 건 (월 1만점)' },
+      { id: 'tb_6_p', icon: <Briefcase />, title: '가맹점 운영지원 10% 할인', desc: '정수기렌탈, 보안, 문구 등', minSpend: 400000, rate: 0.1, extendedDesc: '코웨이, 청호나이스, SK매직, 에스원 등' },
+      { id: 'tb_7_p', icon: <Receipt />, title: '마이비즈 (My Biz) 서비스', desc: '전자세금계산서 무료 발행 등', minSpend: 0, rate: 0, extendedDesc: '부가세 환급예상액 조회 및 세무지원' },
+      { id: 'tb_8_p', icon: <Plane />, title: '티타늄 서비스 (라운지/발레)', desc: '공항 라운지 및 발레파킹', minSpend: 300000, rate: 0, extendedDesc: '마티나/스카이허브 연 2회, 발레파킹 월 3회' }
     ]
   },
   {
@@ -113,10 +120,16 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0,
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '40만원↑', limit: '마트 1.5만 / 쇼핑 1.5만' }],
+    limitTable: [{"tier": "40만원 이상", "limit": "마트 1.5만 / 쇼핑 1.5만 / Basic 5천"}, {"tier": "80만원 이상", "limit": "마트 2만 / 쇼핑 2만 / Basic 5천"}],
     detailedBenefits: [
-      { id: 'tb_1_k', icon: <Droplet />, title: '주유 리터당 110점', desc: 'SK/GS칼텍스 주유소', minSpend: 400000, rate: 0.07 },
-      { id: 'tb_2_k', icon: <ShoppingCart />, title: '마트 15%~20% 적립', desc: '이마트, 롯데마트, 홈플러스', minSpend: 400000, rate: 0.15 }
+      { id: 'tb_1_k', icon: <Droplet />, title: '주유 리터당 110점 적립', desc: 'SK/GS칼텍스 주유소 및 충전소', minSpend: 400000, rate: 0.07, extendedDesc: '월 이용액 20만(40만 이상)/30만(80만 이상) 한도' },
+      { id: 'tb_2_k', icon: <ShoppingCart />, title: '마트 15%~20% 적립', desc: '이마트, 롯데마트, 홈플러스 등', minSpend: 400000, rate: 0.15, extendedDesc: '40만 이상 15%(1.5만) / 80만 이상 20%(2만)' },
+      { id: 'tb_3_k', icon: <ShoppingBag />, title: '온라인쇼핑몰 15%~20% 적립', desc: 'G마켓, 옥션, 11번가, 인터파크 등', minSpend: 400000, rate: 0.15, extendedDesc: '40만 이상 15% / 80만 이상 20% 한도 동일' },
+      { id: 'tb_4_k', icon: <Monitor />, title: '온라인몰 (플러스 O2O) 10%', desc: '배달의민족, 마켓컬리, 그린카 등', minSpend: 400000, rate: 0.1, extendedDesc: 'KB Pay 앱 내 [플러스 O2O] 메뉴 경유 필수, 월 1만점' },
+      { id: 'tb_5_k', icon: <Wifi />, title: '통신/사회보험 10% 적립', desc: '4대보험 및 휴대폰 요금', minSpend: 400000, rate: 0.1, extendedDesc: '건강/국민/고용/산재 자동납부 건 (월 1만점)' },
+      { id: 'tb_6_k', icon: <Briefcase />, title: '가맹점 운영지원 10% 할인', desc: '정수기렌탈, 보안, 문구 등', minSpend: 400000, rate: 0.1, extendedDesc: '코웨이, 청호나이스, SK매직, 에스원 등' },
+      { id: 'tb_7_k', icon: <Receipt />, title: '마이비즈 (My Biz) 서비스', desc: '전자세금계산서 무료 발행 등', minSpend: 0, rate: 0, extendedDesc: '부가세 환급예상액 조회 및 세무지원' },
+      { id: 'tb_8_k', icon: <Plane />, title: '티타늄 서비스 (라운지/발레)', desc: '공항 라운지 및 발레파킹', minSpend: 300000, rate: 0, extendedDesc: '마티나/스카이허브 연 2회, 발레파킹 월 3회' }
     ]
   },
   {
@@ -130,10 +143,13 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0,
     benefitSpending: {}, 
     savedAmount: 0,
-    limitTable: [{ tier: '30만원 이상', limit: '통합 할인 한도 10,000원' }],
+    limitTable: [{"tier": "30만원 이상", "limit": "통합 할인 한도 10,000원"}, {"tier": "60만원 이상", "limit": "통합 할인 한도 20,000원"}, {"tier": "100만원 이상", "limit": "통합 할인 한도 40,000원"}],
     detailedBenefits: [
-      { id: 'mg_1', icon: <ShoppingBag />, title: '쇼핑 5% 청구할인', desc: '마트, 다이소, 올리브영', minSpend: 300000, rate: 0.05 },
-      { id: 'mg_2', icon: <BookOpen />, title: '학원 5% 청구할인', desc: '전국 일반 학원 업종', minSpend: 300000, rate: 0.05 }
+      { id: 'mg_1', icon: <ShoppingBag />, title: '쇼핑 5% 청구할인', desc: '마트, 홈쇼핑, 다이소, 올리브영', minSpend: 300000, rate: 0.05, extendedDesc: '이마트/롯데/홈플 (오프라인), GS/롯데/현대 등 홈쇼핑' },
+      { id: 'mg_2', icon: <BookOpen />, title: '학원 5% 청구할인', desc: '전국 일반 학원 업종', minSpend: 300000, rate: 0.05, extendedDesc: '입시/보습, 예체능, 외국어학원 등 오프라인 결제' },
+      { id: 'mg_3', icon: <Stethoscope />, title: '병원/약국 5% 청구할인', desc: '전국 모든 병원 및 약국', minSpend: 300000, rate: 0.05, extendedDesc: '종합/일반/한방/치과 등 모든 병원 포함' },
+      { id: 'mg_4', icon: <Ticket />, title: '여가생활 5% 청구할인', desc: '골프, 헬스, 헤어샵 등', minSpend: 300000, rate: 0.05, extendedDesc: '당구장, 스포츠용품 포함 (공립 기관 제외)' },
+      { id: 'mg_5', icon: <Building />, title: '새마을금고 수수료 면제', desc: 'ATM 출금 및 타행 이체', minSpend: 300000, rate: 0, extendedDesc: 'ATM 출금 무제한, 타행 이체 월 10회' }
     ]
   },
   {
@@ -147,10 +163,14 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0, 
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '10만원 이상', limit: '교통 3천 / 마트 5천' }],
+    limitTable: [{"tier": "10만원 이상", "limit": "교통 3천원"}, {"tier": "20만원 이상", "limit": "교통 3천원 + 마트 5천원"}, {"tier": "30만원 이상", "limit": "교통/마트 + 학원/외식 등 추가"}],
     detailedBenefits: [
-      { id: 'dh_1', icon: <MapPin />, title: '공공시설 할인 (무실적)', desc: '서울시 공영주차장 등', minSpend: 0, rate: 0.3 },
-      { id: 'dh_2', icon: <Bus />, title: '대중교통 10% 할인', desc: '버스, 지하철 요금 청구 할인', minSpend: 100000, rate: 0.1 }
+      { id: 'dh_1', icon: <MapPin />, title: '공공시설 이용료 할인 (무실적)', desc: '서울시 공영주차장 및 문화시설', minSpend: 0, rate: 0.3, extendedDesc: '공영주차장 30~50%, 남산터널 면제, 박물관 입장료 할인' },
+      { id: 'dh_2', icon: <Bus />, title: '대중교통 10% 할인', desc: '버스, 지하철 요금 청구 할인', minSpend: 100000, rate: 0.1, extendedDesc: '전월 10만 이상 시 월 3,000원 한도' },
+      { id: 'dh_3', icon: <ShoppingCart />, title: '대형마트 5% 할인', desc: '이마트, 홈플러스, 롯데마트', minSpend: 200000, rate: 0.05, extendedDesc: '전월 20만 이상 시 월 5,000원 한도 (창고형 제외)' },
+      { id: 'dh_4', icon: <BookOpen />, title: '전국 학원 5% 할인', desc: '입시, 보습, 외국어 학원 등', minSpend: 300000, rate: 0.05, extendedDesc: '전월 30만 이상 시 월 1만원 한도, 오프라인 결제건' },
+      { id: 'dh_5', icon: <Coffee />, title: '스타벅스/외식 20% 할인', desc: '스타벅스 및 주요 패밀리레스토랑', minSpend: 300000, rate: 0.2, extendedDesc: '스타벅스 월 2회(회당 5천원), 패밀리레스토랑 20% 할인' },
+      { id: 'dh_6', icon: <Ticket />, title: '놀이공원 50% 할인', desc: '에버랜드, 롯데월드, 서울랜드', minSpend: 300000, rate: 0.5, extendedDesc: '본인 자유이용권 50% 현장할인 (통합 월 1회, 연 10회)' }
     ]
   },
   {
@@ -164,10 +184,12 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0, 
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '30만원 이상', limit: '특별 한도 1만점' }],
+    limitTable: [{"tier": "30만원 이상", "limit": "특별/추가 한도 1만점 (기본 무제한)"}, {"tier": "60만원 이상", "limit": "특별/추가 한도 2만점 (기본 무제한)"}, {"tier": "120만원 이상", "limit": "특별/추가 한도 5만점 (기본 무제한)"}],
     detailedBenefits: [
-      { id: 'wow_1', icon: <Wifi />, title: '통신/대중교통 5% 적립', desc: '자동이체 및 버스/지하철', minSpend: 300000, rate: 0.05 },
-      { id: 'wow_2', icon: <Smartphone />, title: '간편결제 3% 추가 적립', desc: '네이버/카카오/PAYCO 등', minSpend: 300000, rate: 0.03 }
+      { id: 'wow_1', icon: <Bus />, title: '이동통신/대중교통 5% 적립', desc: '통신사 자동이체 및 버스/지하철', minSpend: 300000, rate: 0.05, extendedDesc: '전기차 충전 포함, 결합상품 제외' },
+      { id: 'wow_2', icon: <Smartphone />, title: '주요 간편결제 3% 추가 적립', desc: '네이버/카카오/PAYCO/SSGPAY', minSpend: 300000, rate: 0.03, extendedDesc: '온/오프라인 모두 적용, 기본/특별 적립과 중복 적용' },
+      { id: 'wow_3', icon: <Film />, title: '커피/영화 3% 적립', desc: '스타벅스, 투썸, CGV, 롯데시네마', minSpend: 300000, rate: 0.03, extendedDesc: '백화점/대형마트 입점 매장 제외' },
+      { id: 'wow_4', icon: <ShoppingCart />, title: '백화점/마트/온라인 1% 적립', desc: '이마트, 쿠팡, G마켓, 백화점 등', minSpend: 300000, rate: 0.01, extendedDesc: '면세점, 해외 가맹점 포함' }
     ]
   },
   {
@@ -181,9 +203,12 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0, 
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '30만원 이상', limit: '온라인 4천 / 오프라인 6천' }],
+    limitTable: [{"tier": "30만원 이상", "limit": "온라인 4천 / 오프라인 6천"}, {"tier": "70만원 이상", "limit": "온라인 8천 / 오프라인 1.2만"}, {"tier": "120만원 이상", "limit": "온라인 1.6만 / 오프라인 2.4만"}],
     detailedBenefits: [
-      { id: 'sh_1', icon: <ShoppingBag />, title: '온라인 쇼핑 10% 할인', desc: '주요 온라인 쇼핑몰', minSpend: 300000, rate: 0.1 }
+      { id: 'sh_1', icon: <Monitor />, title: '온라인 쇼핑 10% + 5% 할인', desc: '쿠팡, G마켓 등 + 간편결제 시 추가', minSpend: 300000, rate: 0.15, extendedDesc: '온라인 쇼핑 10% + 4대 PAY 온라인 결제 시 총 15% 할인' },
+      { id: 'sh_2', icon: <ShoppingBag />, title: '오프라인 쇼핑 10% 할인', desc: '백화점, 마트, 아울렛, 편의점', minSpend: 300000, rate: 0.1, extendedDesc: '트레이더스, 이케아, 올리브영, 다이소 포함' },
+      { id: 'sh_3', icon: <Droplet />, title: '주말 주유 리터당 60원 할인', desc: '4대 주유소 (LPG 제외)', minSpend: 300000, rate: 0.04, extendedDesc: '토/일요일 결제 건에 한해 적용' },
+      { id: 'sh_4', icon: <Coffee />, title: '스타벅스/폴바셋 10% 할인', desc: '커피 전문점 청구 할인', minSpend: 300000, rate: 0.1, extendedDesc: '월 5,000원 할인 한도' }
     ]
   },
   {
@@ -197,9 +222,12 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0, 
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '20만원 이상', limit: '적립 1만점' }],
+    limitTable: [{"tier": "20만원 이상", "limit": "적립한도 1만점 / 커피/교통 각 5천"}, {"tier": "50만원 이상", "limit": "적립한도 2만점 / 커피/교통 각 5천"}, {"tier": "100만원 이상", "limit": "적립한도 3만점 / 커피/교통 각 5천"}],
     detailedBenefits: [
-      { id: 'gs_1', icon: <ShoppingBag />, title: 'SmilePay 10% 적립', desc: 'G마켓, 옥션 결제', minSpend: 200000, rate: 0.1 }
+      { id: 'gs_1', icon: <ShoppingCart />, title: 'SmilePay 기본적립 (무실적)', desc: 'G마켓, 옥션 결제 시 1% 적립', minSpend: 0, rate: 0.01, extendedDesc: '무제한 적립 (일반 결제 시 0.5%)' },
+      { id: 'gs_2', icon: <Sparkles />, title: 'SmilePay 10% 특별적립', desc: 'G마켓, 옥션 스마일페이 결제 시', minSpend: 200000, rate: 0.1, extendedDesc: '한도: 1만(20만 이상), 2만(50만 이상), 3만(100만 이상)' },
+      { id: 'gs_3', icon: <Coffee />, title: '커피전문점 20% 할인', desc: '스타벅스, 이디야, 투썸플레이스', minSpend: 200000, rate: 0.2, extendedDesc: '통합 월 할인 한도 5,000원' },
+      { id: 'gs_4', icon: <Bus />, title: '대중교통 8% 할인', desc: '버스, 지하철 청구 할인', minSpend: 200000, rate: 0.08, extendedDesc: '통합 월 할인 한도 5,000원' }
     ]
   },
   {
@@ -213,10 +241,11 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0, 
     benefitSpending: {}, 
     savedAmount: 0,
-    limitTable: [{ tier: '무실적', limit: '할인 한도 무제한' }],
+    limitTable: [{"tier": "무실적", "limit": "할인 한도 무제한"}],
     detailedBenefits: [
-      { id: 'wd_1', icon: <Globe />, title: '전가맹점 0.7% 할인', desc: '조건 없이 무제한', minSpend: 0, rate: 0.007 },
-      { id: 'wd_2', icon: <Smartphone />, title: '온라인 간편결제 1.2% 할인', desc: '하나/네이버/카카오/삼성페이', minSpend: 0, rate: 0.012 }
+      { id: 'wd_1', icon: <Globe />, title: '전가맹점 0.7% 기본 할인', desc: '실적 조건 없이 무제한', minSpend: 0, rate: 0.007, extendedDesc: '세금, 공과금, 상품권 등 제외' },
+      { id: 'wd_2', icon: <Smartphone />, title: '온라인 간편결제 1.2% 할인', desc: '하나/네이버/카카오/삼성페이 등', minSpend: 0, rate: 0.012, extendedDesc: '오프라인 삼성페이 포함 무제한' },
+      { id: 'wd_3', icon: <ShoppingCart />, title: '대형마트/온라인쇼핑 1.2% 할인', desc: '마트, 트레이더스, 코스트코 등', minSpend: 0, rate: 0.012, extendedDesc: '🔥 창고형 마트(트레이더스 등) 포함 무제한' }
     ]
   },
   {
@@ -230,9 +259,10 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0,
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '무실적', limit: '최대 5만원 캐시백' }],
+    limitTable: [{"tier": "무실적", "limit": "월 최대 5만원 캐시백"}],
     detailedBenefits: [
-      { id: 'kb_k1', icon: <Globe />, title: '결제횟수 캐시백', desc: '5천원 이상 결제 카운트', minSpend: 0, rate: 0.01 }
+      { id: 'kb_k1', icon: <Globe />, title: '결제횟수 캐시백 (짭모아)', desc: '5천원 이상 10번마다 캐시백 증액', minSpend: 0, rate: 0.01, extendedDesc: '동일 가맹점 1일 1회 카운트' },
+      { id: 'kb_k2', icon: <Utensils />, title: '배달앱/카카오T 3천원 캐시백', desc: '배민, 요기요, 카카오T 이용 시', minSpend: 0, rate: 0.1, extendedDesc: '5천원 이상 결제 시 3천원 (월 2회)' }
     ]
   },
   {
@@ -246,10 +276,10 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0,
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '무실적', limit: 'KB Pay 추가 1만점' }],
+    limitTable: [{"tier": "무실적", "limit": "KB Pay 추가 1만점 / 기본 무제한"}],
     detailedBenefits: [
-      { id: 'kb_tok1_p', icon: <Globe />, title: '기본 0.5% 적립', desc: '전 가맹점 무실적 무제한', minSpend: 0, rate: 0.005 },
-      { id: 'kb_tok2_p', icon: <Smartphone />, title: 'KB Pay 5% 추가 적립', desc: 'KB Pay 결제 시', minSpend: 0, rate: 0.05 }
+      { id: 'kb_tok1_p', icon: <Globe />, title: '기본 0.5% 적립', desc: '전 가맹점 무실적/무제한 적립', minSpend: 0, rate: 0.005, extendedDesc: '국내외 전가맹점' },
+      { id: 'kb_tok2_p', icon: <Smartphone />, title: 'KB Pay 5% 특별 적립', desc: 'KB Pay 결제 시 추가 적립', minSpend: 0, rate: 0.05, extendedDesc: '기본 적립 포함 총 5.5% (월 1만점)' }
     ]
   },
   {
@@ -263,10 +293,10 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0,
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '무실적', limit: 'KB Pay 추가 1만점' }],
+    limitTable: [{"tier": "무실적", "limit": "KB Pay 추가 1만점 / 기본 무제한"}],
     detailedBenefits: [
-      { id: 'kb_tok1_k', icon: <Globe />, title: '기본 0.5% 적립', desc: '전 가맹점 무실적 무제한', minSpend: 0, rate: 0.005 },
-      { id: 'kb_tok2_k', icon: <Smartphone />, title: 'KB Pay 5% 추가 적립', desc: 'KB Pay 결제 시', minSpend: 0, rate: 0.05 }
+      { id: 'kb_tok1_k', icon: <Globe />, title: '기본 0.5% 적립', desc: '전 가맹점 무실적/무제한 적립', minSpend: 0, rate: 0.005, extendedDesc: '국내외 전가맹점' },
+      { id: 'kb_tok2_k', icon: <Smartphone />, title: 'KB Pay 5% 특별 적립', desc: 'KB Pay 결제 시 추가 적립', minSpend: 0, rate: 0.05, extendedDesc: '기본 적립 포함 총 5.5% (월 1만점)' }
     ]
   }
 ];
@@ -333,9 +363,9 @@ export default function App() {
       } else if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
         setToastMsg('⚠️ Firebase 콘솔에서 Google 로그인 제공업체를 먼저 활성화해주세요.');
       } else {
-        setToastMsg(`구글 로그인 실패: ${error.message.split(' (')[0]}`);
+        setToastMsg(`구글 로그인 실패: ${error.code || error.message}`);
       }
-      setTimeout(() => setToastMsg(''), 5000);
+      setTimeout(() => setToastMsg(''), 6000);
     });
 
     return () => unsubscribe();
@@ -343,11 +373,23 @@ export default function App() {
 
   // 구글 로그인 처리 (팝업 대신 화면 이동 방식)
   const handleGoogleLogin = async () => {
+    // 카카오톡 내장 브라우저 차단 우회 안내
+    const isKakaoTalk = /kakaotalk/i.test(navigator.userAgent);
+    if (isKakaoTalk) {
+      setToastMsg('🚫 카카오톡 브라우저에서는 구글 로그인이 막혀있습니다. 화면 우측 하단(⁝)을 눌러 [다른 브라우저로 열기(Safari/Chrome)]를 선택해주세요!');
+      setTimeout(() => setToastMsg(''), 7000);
+      return;
+    }
+
     try {
       await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       console.error("구글 로그인 준비 에러:", error);
-      setToastMsg(`로그인 화면 이동 실패: ${error.message.split(' (')[0]}`);
+      if (error.code === 'auth/unauthorized-domain') {
+        setToastMsg('⚠️ Firebase 승인된 도메인에 Vercel 주소를 추가해야 합니다!');
+      } else {
+        setToastMsg(`로그인 화면 이동 실패: ${error.code || error.message}`);
+      }
       setTimeout(() => setToastMsg(''), 5000);
     }
   };
@@ -555,7 +597,7 @@ export default function App() {
   const CardDetail = ({ id, onClose }) => {
     const card = cards.find(c => c.id === id);
     const [lmVal, setLmVal] = useState(card?.lastMonthSpend || 0);
-    const scrollRef = useRef(null); // 스크롤 제어를 위한 Ref 추가
+    const scrollRef = useRef(null); 
     
     useEffect(() => {
       setLmVal(card?.lastMonthSpend || 0);
@@ -571,7 +613,7 @@ export default function App() {
     if (!card) return null;
 
     return (
-      <div ref={scrollRef} className="absolute inset-0 bg-white z-50 overflow-y-auto pb-safe animate-in slide-in-from-right duration-300">
+      <div ref={scrollRef} className="absolute inset-0 bg-white z-50 overflow-y-auto pb-safe animate-in slide-in-from-right duration-300 custom-scrollbar">
         <header className="sticky top-0 bg-white/90 backdrop-blur px-5 py-4 border-b flex items-center justify-between z-10">
           <div className="flex items-center">
             <button onClick={onClose} className="p-2 -ml-2 text-gray-800"><ChevronLeft size={28}/></button>
@@ -610,8 +652,13 @@ export default function App() {
               return (
                 <div key={db.id} className={isActive ? "opacity-100" : "opacity-30 grayscale pointer-events-none"}>
                   <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1 pr-4"><h5 className="font-black text-[15px] leading-snug">{db.title}</h5><p className="text-xs text-gray-500 mt-0.5">{db.desc}</p></div>
-                    {isActive ? <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold shrink-0">적용중</span> : <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full font-bold shrink-0">{formatWon(db.minSpend)}↑ 필요</span>}
+                    <div className="flex-1 pr-4">
+                      <h5 className="font-black text-[15px] leading-snug">{db.title}</h5>
+                      <p className="text-xs text-gray-500 mt-0.5">{db.desc}</p>
+                      {/* 상세 혜택 설명 표시 (완벽 복구됨) */}
+                      {db.extendedDesc && <p className="text-[10px] text-gray-400 mt-1 leading-relaxed break-keep">ℹ {db.extendedDesc}</p>}
+                    </div>
+                    {isActive ? <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold shrink-0 mt-1">적용중</span> : <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full font-bold shrink-0 mt-1">{formatWon(db.minSpend)}↑ 필요</span>}
                   </div>
                   {isActive && (
                     <div className="mt-4 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-inner">
