@@ -255,6 +255,7 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState('');
   const [user, setUser] = useState(null);
   const [isSyncing, setIsSyncing] = useState(true);
+  const [authError, setAuthError] = useState(false); // 인증 에러 처리용 상태
 
   // AI 관련 상태
   const [aiLoading, setAiLoading] = useState(false);
@@ -278,12 +279,14 @@ export default function App() {
         }
       } catch (err) {
         console.error("Auth Init Error", err);
+        setAuthError(true); // 에러 상태를 true로 변경
+        
         if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
-          setToastMsg('⚠️ Firebase 콘솔 > Build > Authentication 메뉴에서 [시작하기]를 누르고, 익명 로그인/Google 로그인을 활성화해주세요.');
+          setToastMsg('Firebase 인증 설정이 아직 완료되지 않아 로컬 모드로 작동합니다.');
         } else {
-          setToastMsg('인증 초기화 실패. 일시적인 오류일 수 있습니다.');
+          setToastMsg('인증 초기화 실패로 로컬 모드로 작동합니다.');
         }
-        setIsSyncing(false); // 오류가 나더라도 화면을 보여주기 위해 Syncing 종료
+        setIsSyncing(false); // 동기화 로딩 화면 해제
       }
     };
     initAuth();
@@ -300,10 +303,11 @@ export default function App() {
     try {
       await signInWithPopup(auth, googleProvider);
       setToastMsg('🎉 구글 로그인 성공! 가족과 연동되었습니다.');
+      setAuthError(false); // 로그인 성공 시 에러 상태 해제
     } catch (error) {
       console.error(error);
       if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
-        setToastMsg('⚠️ Firebase 콘솔에서 Google 로그인 제공업체를 활성화해주세요.');
+        setToastMsg('⚠️ Firebase 콘솔에서 Google 로그인 제공업체를 먼저 활성화해주세요.');
       } else {
         setToastMsg('구글 로그인에 실패했습니다.');
       }
@@ -323,7 +327,11 @@ export default function App() {
 
   // 2. 월별 데이터 구독 (Firestore)
   useEffect(() => {
-    if (!user) return; // 로그인 실패 또는 대기 중일 때는 건너뜀
+    if (!user || authError) {
+      setIsSyncing(false); // 인증 에러가 있거나 유저가 없으면 대기하지 않음
+      return; 
+    }
+    
     setIsSyncing(true);
     
     // 월별 데이터를 저장하는 컬렉션 경로
@@ -368,12 +376,12 @@ export default function App() {
       setIsSyncing(false);
     });
     return () => unsubscribe();
-  }, [user, currentMonthStr]);
+  }, [user, currentMonthStr, authError]);
 
   // 클라우드 저장 로직
   const saveToCloud = async (newCards) => {
-    if (!user) {
-      setToastMsg('⚠️ 로그인이 필요합니다. 데이터를 저장할 수 없습니다.');
+    if (authError || !user) {
+      setToastMsg('⚠️ 인증 설정이 완료되지 않아 데이터가 기기에만 임시 저장됩니다.');
       setTimeout(() => setToastMsg(''), 3000);
       return;
     }
@@ -417,8 +425,10 @@ export default function App() {
     });
     setCards(newCards);
     saveToCloud(newCards);
-    setToastMsg('☁️ 클라우드 저장 완료');
-    setTimeout(() => setToastMsg(''), 1500);
+    if (!authError) {
+      setToastMsg('☁️ 클라우드 저장 완료');
+      setTimeout(() => setToastMsg(''), 1500);
+    }
   };
 
   // 삭제 기능 추가
@@ -442,8 +452,10 @@ export default function App() {
     });
     setCards(newCards);
     saveToCloud(newCards);
-    setToastMsg('🗑️ 내역이 삭제되었습니다.');
-    setTimeout(() => setToastMsg(''), 1500);
+    if (!authError) {
+      setToastMsg('🗑️ 내역이 삭제되었습니다.');
+      setTimeout(() => setToastMsg(''), 1500);
+    }
   };
 
   const updateLM = (cardId, val) => {
@@ -602,6 +614,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 flex justify-center font-sans">
       <div className="w-full max-w-md bg-white min-h-screen flex flex-col relative shadow-2xl overflow-hidden border-x">
+        {/* 인증 오류 배너 */}
+        {authError && (
+          <div className="bg-red-50 text-red-600 text-[11px] font-bold px-4 py-2 text-center flex justify-center items-center relative z-30">
+            <AlertTriangle size={14} className="mr-1"/> Firebase 설정 전이라 데이터가 클라우드에 저장되지 않습니다.
+          </div>
+        )}
+
         <header className="px-6 pt-12 pb-4 bg-white sticky top-0 z-20 flex justify-between items-center border-b">
           <h1 className="text-xl font-black tracking-tight">Smart<span className="text-indigo-600">Card</span></h1>
           <div className="flex items-center space-x-3">
