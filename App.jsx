@@ -603,12 +603,28 @@ export default function App() {
       setLmVal(card?.lastMonthSpend || 0);
     }, [card?.lastMonthSpend]);
 
-    // 카드가 열릴 때마다 스크롤을 무조건 맨 위로 고정
+    // 카드가 열릴 때마다 스크롤을 무조건 맨 위로 고정 (강제 렌더링 및 애니메이션 동기화)
     useEffect(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTo(0, 0);
-      }
-    }, [id]); 
+      const forceScrollTop = () => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = 0;
+        }
+      };
+
+      // 1. 컴포넌트 렌더링 즉시 최상단 이동
+      forceScrollTop();
+      
+      // 2. 브라우저가 화면을 그리는 찰나의 시간(10ms) 이후 다시 한번 강력하게 고정
+      const timer1 = setTimeout(forceScrollTop, 10);
+      
+      // 3. 슬라이드 애니메이션(duration-300)이 완전히 끝난 350ms 시점에 최종적으로 못 박기
+      const timer2 = setTimeout(forceScrollTop, 350);
+
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }, []); 
 
     if (!card) return null;
 
@@ -852,7 +868,8 @@ export default function App() {
           <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center transition-all ${activeTab === 'home' ? 'text-indigo-600 scale-110' : 'text-gray-300'}`}><Home/><span className="text-[10px] font-black mt-1 uppercase tracking-tighter">REPORT</span></button>
         </nav>
 
-        {selectedDetailCardId && <CardDetail id={selectedDetailCardId} onClose={() => setSelectedDetailCardId(null)}/>}
+        {/* key={selectedDetailCardId} 속성을 추가하여 카드마다 화면을 완벽하게 리셋하도록 강제 (스크롤 버그 원천 차단) */}
+        {selectedDetailCardId && <CardDetail key={selectedDetailCardId} id={selectedDetailCardId} onClose={() => setSelectedDetailCardId(null)}/>}
         {toastMsg && <div className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl text-xs font-bold shadow-2xl z-50 animate-in slide-in-from-bottom-4 text-center leading-relaxed whitespace-pre-wrap">{toastMsg}</div>}
       </div>
       <style>{`
