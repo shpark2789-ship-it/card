@@ -60,7 +60,7 @@ const fetchGemini = async (prompt, systemInstruction) => {
   }
 };
 
-// --- 카드 데이터 세트 (데이터 유실 0%, 상세 혜택 완벽 복구) ---
+// --- 카드 데이터 세트 (데이터 유실 0%, 상세 혜택 완벽 보존) ---
 const INITIAL_CARDS = [
   {
     id: 1,
@@ -536,7 +536,7 @@ export default function App() {
   const totalSpendAll = cards.reduce((sum, card) => sum + (card.id === 3 ? 0 : calculateCurrentSpend(card)), 0);
   const totalSaved = cards.reduce((sum, card) => sum + card.savedAmount, 0);
 
-  // 메인 스와이프 제스처 처리
+  // 메인 탭 스와이프 제스처 처리 (사용자 요청에 맞춰 좌/우 이동 완벽 세팅)
   const onMainTouchStart = (e) => {
     setMainTouchEnd(null);
     setMainTouchStart(e.targetTouches[0].clientX);
@@ -547,13 +547,14 @@ export default function App() {
     const distance = mainTouchStart - mainTouchEnd;
     const tabs = ['cards', 'smartPick', 'home'];
     const currentIndex = tabs.indexOf(activeTab);
-    // 왼쪽으로 쓸어넘기기 (오른쪽에서 왼쪽으로 터치 이동) -> 다음 탭 이동
-    if (distance > 50 && currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1]); 
-    // 오른쪽으로 쓸어넘기기 (왼쪽에서 오른쪽으로 터치 이동) -> 이전 탭 이동
-    if (distance < -50 && currentIndex > 0) setActiveTab(tabs[currentIndex - 1]); 
+    
+    // 왼쪽으로 쓸어넘기면 (손가락이 오른쪽에서 왼쪽으로 이동 -> distance > 40) 이전 페이지로
+    if (distance > 40 && currentIndex > 0) setActiveTab(tabs[currentIndex - 1]); 
+    // 오른쪽으로 쓸어넘기면 (손가락이 왼쪽에서 오른쪽으로 이동 -> distance < -40) 다음 페이지로
+    if (distance < -40 && currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1]); 
   };
 
-  // 5. Gemini AI 로직 (검색 방지 및 자체 데이터만 사용하도록 프롬프트 강화)
+  // 5. Gemini AI 로직 (검색 금지 및 내부 데이터만 사용하도록 통제 강화)
   const handleSmartPick = async () => {
     if (!aiPickQuery.trim()) return;
     setAiLoading(true);
@@ -567,7 +568,7 @@ export default function App() {
     }));
 
     const promptText = `질문: ${aiPickQuery}\n\n[보유 카드 상황]\n${JSON.stringify(context)}`;
-    const systemInstruction = `당신은 스마트 카드 비서입니다. 절대 인터넷 웹 검색을 하지 마세요. 오직 제공된 '[보유 카드 상황]' JSON 데이터 안에서만 100% 기준으로 답변하세요. 외부 정보 사용은 절대 금지됩니다. 사용자의 질문에 맞춰 혜택이 큰 카드 1개를 추천하고, 제공된 데이터를 근거로 3줄 이내로 간결하게 요약하세요.`;
+    const systemInstruction = `당신은 스마트 카드 비서입니다. 절대 인터넷 외부 웹 검색을 하지 마세요. 오직 제공된 '[보유 카드 상황]' JSON 데이터 안에서만 찾아 100% 기준으로 답변하세요. 외부 정보 사용은 절대 금지됩니다. 사용자의 질문에 맞춰 혜택이 가장 큰 카드 1개를 추천하고, 제공된 데이터를 근거로 3줄 이내로 간결하게 요약하세요.`;
 
     try {
       const result = await fetchGemini(promptText, systemInstruction);
@@ -589,7 +590,7 @@ export default function App() {
     try {
       const result = await fetchGemini(
         `소비 요약: ${JSON.stringify(summary)}`,
-        "금융 분석가로서 오직 위의 소비 요약 데이터만 보고, 더 효율적인 소비 팁 3가지를 한국어로 제안하세요."
+        "금융 분석가로서 절대 외부 검색 없이 오직 위의 소비 요약 데이터만 분석하고, 더 효율적인 소비 팁 3가지를 한국어로 제안하세요."
       );
       setAiAnalysisReport(result);
     } catch (e) {
@@ -610,18 +611,18 @@ export default function App() {
       setLmVal(card?.lastMonthSpend || 0);
     }, [card?.lastMonthSpend]);
 
-    // 카드가 열릴 때마다 스크롤을 무조건 맨 위로 고정 (강제 렌더링 및 애니메이션 동기화)
+    // 카드가 열릴 때마다 스크롤을 무조건 맨 위로 강제 고정 (애니메이션과 DOM 렌더링 충돌 100% 차단)
     useEffect(() => {
       const forceScrollTop = () => {
         if (scrollRef.current) scrollRef.current.scrollTop = 0;
       };
-      forceScrollTop(); // 컴포넌트 렌더링 즉시 실행
-      const timer1 = setTimeout(forceScrollTop, 50); // 렌더링 직후 재확인
-      const timer2 = setTimeout(forceScrollTop, 350); // 슬라이드 애니메이션 완료 후 확정
+      forceScrollTop(); 
+      const timer1 = setTimeout(forceScrollTop, 50); 
+      const timer2 = setTimeout(forceScrollTop, 350); 
       return () => { clearTimeout(timer1); clearTimeout(timer2); };
     }, [id]); 
 
-    // 아이폰 뒤로가기 스와이프 제스처 (왼쪽에서 오른쪽으로 넘기기)
+    // 아이폰 뒤로가기 스와이프 제스처 (왼쪽이든 오른쪽이든 쓸어넘기면 무조건 뒤로가기/닫기)
     const onDetailTouchStart = (e) => {
       setDetailTouchEnd(null);
       setDetailTouchStart(e.targetTouches[0].clientX);
@@ -630,17 +631,36 @@ export default function App() {
     const onDetailTouchEnd = () => {
       if (!detailTouchStart || !detailTouchEnd) return;
       const distance = detailTouchStart - detailTouchEnd;
-      // 오른쪽으로 쓸어넘기기 (왼쪽에서 오른쪽 터치) -> 뒤로가기
-      if (distance < -50) onClose(); 
+      // 좌우 상관없이 40px 이상 강하게 쓸어넘기면 창을 닫음 (가장 직관적이고 확실한 방법)
+      if (Math.abs(distance) > 40) onClose(); 
+    };
+
+    // 적용된 한도 구하기
+    const getAppliedLimit = () => {
+      if (!card.limitTable || card.limitTable.length === 0) return "없음";
+      let applied = card.limitTable[0].limit;
+      let isMetAny = false;
+      
+      for (let row of card.limitTable) {
+        const numMatch = row.tier.match(/[0-9]+/);
+        if (!numMatch) return row.limit; 
+        const req = parseInt(numMatch[0]) * 10000;
+        if (lmVal >= req) {
+          applied = row.limit;
+          isMetAny = true;
+        }
+      }
+      return isMetAny ? applied : "실적 미달 (기본 혜택만 적용)";
     };
 
     if (!card) return null;
 
     return (
+      // 스크롤이 하단에 남는 버그의 원인이었던 absolute를 fixed로 완전히 교체하고 가운데 정렬 유지
       <div 
         ref={scrollRef} 
         onTouchStart={onDetailTouchStart} onTouchMove={onDetailTouchMove} onTouchEnd={onDetailTouchEnd}
-        className="absolute inset-0 bg-white z-50 overflow-y-auto pb-safe animate-in slide-in-from-right duration-300 custom-scrollbar"
+        className="fixed inset-y-0 w-full max-w-md bg-white z-[100] overflow-y-auto animate-in slide-in-from-right duration-300 custom-scrollbar left-1/2 -translate-x-1/2"
       >
         <header className="sticky top-0 bg-white/90 backdrop-blur px-5 py-4 border-b flex items-center justify-between z-10">
           <div className="flex items-center">
@@ -662,23 +682,28 @@ export default function App() {
 
           <div className="bg-indigo-50 rounded-2xl p-5 mb-6 border border-indigo-100 shadow-inner">
             <p className="text-[11px] font-black text-indigo-400 mb-2 font-bold uppercase">직전달 실적 기입 (혜택 기준)</p>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 mb-4">
               <input type="number" value={lmVal} onChange={e => setLmVal(e.target.value)} onBlur={() => updateLM(id, lmVal)} className="flex-1 bg-white border-2 border-indigo-100 rounded-xl px-4 py-2 font-black text-indigo-700 outline-none shadow-sm"/>
               <span className="font-bold text-indigo-600">원</span>
             </div>
+            
+            {/* 카드별 통합 할인 한도 자동 계산 및 하이라이트 표시 UI */}
+            <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
+              <span className="text-[10px] font-bold text-gray-400 block mb-1">현재 적용된 통합 한도</span>
+              <span className="text-[13px] font-black text-indigo-700 leading-tight">{getAppliedLimit()}</span>
+            </div>
           </div>
 
-          {/* 카드별 통합 할인 한도 표시 UI (표 형식으로 전체 렌더링) */}
+          {/* 통합 할인 한도 전체 표 렌더링 */}
           {card.limitTable && card.limitTable.length > 0 && (
-            <div className="bg-white rounded-2xl p-4 mb-6 border border-indigo-100 shadow-sm">
-              <h4 className="font-black text-[13px] text-indigo-700 mb-3 flex items-center"><Table size={16} className="mr-1"/> 실적별 통합 할인/적립 한도</h4>
+            <div className="bg-white rounded-2xl p-4 mb-6 border border-gray-100 shadow-sm">
+              <h4 className="font-black text-[13px] text-gray-700 mb-3 flex items-center"><Table size={16} className="mr-1"/> 실적별 통합 할인/적립 한도</h4>
               <div className="space-y-2">
                 {card.limitTable.map((row, idx) => {
                   const numMatch = row.tier.match(/[0-9]+/);
                   const req = numMatch ? parseInt(numMatch[0]) * 10000 : 0;
                   const nextMatch = idx < card.limitTable.length - 1 ? card.limitTable[idx+1].tier.match(/[0-9]+/) : null;
                   const nextReq = nextMatch ? parseInt(nextMatch[0]) * 10000 : Infinity;
-                  
                   const isActive = (card.limitTable.length === 1 && req === 0) || (lmVal >= req && lmVal < nextReq);
 
                   return (
@@ -693,8 +718,8 @@ export default function App() {
             </div>
           )}
 
-          {/* space-y-10을 space-y-4로 줄여 쓸데없는 여백 제거, 마지막 혜택에서 끝나게 pb-12 적용 */}
-          <div className="space-y-4 pb-12">
+          {/* 쓸데없는 하단 빈 공간 (pb-12 -> 삭제) 없애고 딱 맞게 설정 */}
+          <div className="space-y-4">
             <h4 className="font-black text-lg flex items-center border-b pb-2"><Receipt size={20} className="mr-2 text-indigo-600"/> 혜택별 지출 입력</h4>
             {card.detailedBenefits.map(db => {
               const isActive = card.lastMonthSpend >= db.minSpend;
@@ -709,7 +734,6 @@ export default function App() {
                     <div className="flex-1 pr-4">
                       <h5 className="font-black text-[15px] leading-snug">{db.title}</h5>
                       <p className="text-xs text-gray-500 mt-0.5">{db.desc}</p>
-                      {/* 상세 혜택 설명 표시 (완벽 복구됨) */}
                       {db.extendedDesc && <p className="text-[10px] text-gray-400 mt-1 leading-relaxed break-keep">ℹ {db.extendedDesc}</p>}
                     </div>
                     {isActive ? <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold shrink-0 mt-1">적용중</span> : <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full font-bold shrink-0 mt-1">{formatWon(db.minSpend)}↑ 필요</span>}
@@ -725,7 +749,6 @@ export default function App() {
                         )}
                       </div>
                       
-                      {/* 지출 내역 목록 및 삭제 버튼 */}
                       {hist.length > 0 && (
                         <div className="mb-4 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
                           {hist.map(h => (
@@ -742,7 +765,6 @@ export default function App() {
                         </div>
                       )}
 
-                      {/* 입력창 */}
                       <div className="flex space-x-2">
                         {card.id === 3 ? (
                           <>
@@ -775,7 +797,6 @@ export default function App() {
         className="w-full max-w-md bg-white min-h-screen flex flex-col relative shadow-2xl overflow-hidden border-x"
         onTouchStart={onMainTouchStart} onTouchMove={onMainTouchMove} onTouchEnd={onMainTouchEnd}
       >
-        {/* 인증 오류 배너 */}
         {authError && (
           <div className="bg-red-50 text-red-600 text-[11px] font-bold px-4 py-2 text-center flex justify-center items-center relative z-30">
             <AlertTriangle size={14} className="mr-1"/> Firebase 설정 전이라 데이터가 클라우드에 저장되지 않습니다.
@@ -798,7 +819,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* 월별 네비게이션 컨트롤러 */}
         <div className="bg-gray-50 px-6 py-3 border-b border-gray-100 flex justify-between items-center z-10 sticky top-[73px]">
           <button onClick={handlePrevMonth} className="p-1.5 bg-white rounded-lg shadow-sm text-gray-500 hover:text-indigo-600 active:scale-95 transition">
             <ChevronLeft size={18}/>
@@ -909,7 +929,6 @@ export default function App() {
           <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center transition-all ${activeTab === 'home' ? 'text-indigo-600 scale-110' : 'text-gray-300'}`}><Home/><span className="text-[10px] font-black mt-1 uppercase tracking-tighter">REPORT</span></button>
         </nav>
 
-        {/* key={selectedDetailCardId} 속성을 추가하여 카드마다 화면을 완벽하게 리셋하도록 강제 (스크롤 버그 원천 차단) */}
         {selectedDetailCardId && <CardDetail key={selectedDetailCardId} id={selectedDetailCardId} onClose={() => setSelectedDetailCardId(null)}/>}
         {toastMsg && <div className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl text-xs font-bold shadow-2xl z-50 animate-in slide-in-from-bottom-4 text-center leading-relaxed whitespace-pre-wrap">{toastMsg}</div>}
       </div>
