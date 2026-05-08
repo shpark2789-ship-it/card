@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { 
   Home, CreditCard, Sparkles, Settings, ChevronRight, ChevronLeft, 
   CheckCircle2, Coffee, ShoppingCart, Bus, Utensils, Stethoscope, TrendingUp, 
   RefreshCw, Loader2, Plus, Droplet, ShoppingBag, MoreHorizontal, 
   Smartphone, Globe, Briefcase, Wifi, Monitor, Plane, Gift, History, 
-  BookOpen, MapPin, Baby, Receipt, MousePointer2, Scissors, Table, Film, Ticket, Building, Cloud, HelpCircle, Send, BrainCircuit, AlertTriangle
+  BookOpen, MapPin, Baby, Receipt, MousePointer2, Scissors, Table, Film, Ticket, Building, Cloud, HelpCircle, Send, BrainCircuit, AlertTriangle, LogIn, LogOut, CalendarDays, Trash2
 } from 'lucide-react';
 
-// --- Firebase Configuration (사용자님 설정 적용됨) ---
-const firebaseConfig = {
+// --- Firebase Configuration ---
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
   apiKey: "AIzaSyCIvbe4vyGyEMz17A6iHw1m5VloP1jZ0No",
   authDomain: "smart-card-manager-47d8d.firebaseapp.com",
   projectId: "smart-card-manager-47d8d",
@@ -23,9 +23,10 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
-const appId = 'smart-card-manager-v1';
+const googleProvider = new GoogleAuthProvider();
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-card-manager-v1';
 
-// --- Gemini AI Setup ---
+// --- Gemini API Setup ---
 const apiKey = ""; // API Key는 환경에서 제공됩니다.
 
 const fetchGemini = async (prompt, systemInstruction) => {
@@ -64,7 +65,7 @@ const INITIAL_CARDS = [
     color: 'bg-gradient-to-br from-rose-400 to-rose-600',
     textColor: 'text-white',
     target: 300000,
-    lastMonthSpend: 320000,
+    lastMonthSpend: 0,
     benefitSpending: {},
     savedAmount: 0,
     limitTable: [{ tier: '30만원 이상', limit: '캐시백 5만 + 브런치 2만 + 주유 40만' }],
@@ -84,7 +85,7 @@ const INITIAL_CARDS = [
     color: 'bg-[#98878F]',
     textColor: 'text-white',
     target: 400000,
-    lastMonthSpend: 450000,
+    lastMonthSpend: 0,
     benefitSpending: {},
     savedAmount: 0,
     limitTable: [{ tier: '40만원↑', limit: '마트 1.5만 / 쇼핑 1.5만 / Basic 5천' }],
@@ -103,7 +104,7 @@ const INITIAL_CARDS = [
     color: 'bg-[#98878F]',
     textColor: 'text-white',
     target: 400000,
-    lastMonthSpend: 450000,
+    lastMonthSpend: 0,
     benefitSpending: {},
     savedAmount: 0,
     limitTable: [{ tier: '40만원↑', limit: '마트 1.5만 / 쇼핑 1.5만' }],
@@ -120,7 +121,7 @@ const INITIAL_CARDS = [
     color: 'bg-gradient-to-br from-[#62A674] to-[#458C5B]',
     textColor: 'text-white',
     target: 300000,
-    lastMonthSpend: 350000,
+    lastMonthSpend: 0,
     benefitSpending: {}, 
     savedAmount: 0,
     limitTable: [{ tier: '30만원 이상', limit: '통합 할인 한도 10,000원' }],
@@ -137,7 +138,7 @@ const INITIAL_CARDS = [
     color: 'bg-gradient-to-br from-sky-400 to-blue-500',
     textColor: 'text-white',
     target: 300000, 
-    lastMonthSpend: 150000, 
+    lastMonthSpend: 0, 
     benefitSpending: {},
     savedAmount: 0,
     limitTable: [{ tier: '10만원 이상', limit: '교통 3천 / 마트 5천' }],
@@ -154,7 +155,7 @@ const INITIAL_CARDS = [
     color: 'bg-gradient-to-br from-teal-500 to-emerald-700',
     textColor: 'text-white',
     target: 300000, 
-    lastMonthSpend: 310000, 
+    lastMonthSpend: 0, 
     benefitSpending: {},
     savedAmount: 0,
     limitTable: [{ tier: '30만원 이상', limit: '특별 한도 1만점' }],
@@ -171,7 +172,7 @@ const INITIAL_CARDS = [
     color: 'bg-gradient-to-br from-red-500 to-red-700',
     textColor: 'text-white',
     target: 300000, 
-    lastMonthSpend: 350000, 
+    lastMonthSpend: 0, 
     benefitSpending: {},
     savedAmount: 0,
     limitTable: [{ tier: '30만원 이상', limit: '온라인 4천 / 오프라인 6천' }],
@@ -187,7 +188,7 @@ const INITIAL_CARDS = [
     color: 'bg-gradient-to-br from-green-500 to-green-700',
     textColor: 'text-white',
     target: 200000, 
-    lastMonthSpend: 250000, 
+    lastMonthSpend: 0, 
     benefitSpending: {},
     savedAmount: 0,
     limitTable: [{ tier: '20만원 이상', limit: '적립 1만점' }],
@@ -261,6 +262,11 @@ export default function App() {
   const [aiResponse, setAiResponse] = useState(null);
   const [analysisReport, setAiAnalysisReport] = useState(null);
 
+  // 월별 관리 상태
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const currentMonthStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}`;
+  const displayMonthStr = `${String(selectedDate.getFullYear()).slice(2)}년 ${selectedDate.getMonth() + 1}월`;
+
   // 1. Firebase 인증 및 실시간 동기화
   useEffect(() => {
     const initAuth = async () => {
@@ -271,25 +277,67 @@ export default function App() {
           await signInAnonymously(auth);
         }
       } catch (err) {
-        setIsSyncing(false);
+        console.error("Auth Init Error", err);
+        if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
+          setToastMsg('⚠️ Firebase 콘솔 > Build > Authentication 메뉴에서 [시작하기]를 누르고, 익명 로그인/Google 로그인을 활성화해주세요.');
+        } else {
+          setToastMsg('인증 초기화 실패. 일시적인 오류일 수 있습니다.');
+        }
+        setIsSyncing(false); // 오류가 나더라도 화면을 보여주기 위해 Syncing 종료
       }
     };
     initAuth();
-    const unsubscribe = onAuthStateChanged(auth, setUser);
+    
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (!currentUser) setIsSyncing(false);
+    });
     return () => unsubscribe();
   }, []);
 
+  // 구글 로그인 처리
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      setToastMsg('🎉 구글 로그인 성공! 가족과 연동되었습니다.');
+    } catch (error) {
+      console.error(error);
+      if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
+        setToastMsg('⚠️ Firebase 콘솔에서 Google 로그인 제공업체를 활성화해주세요.');
+      } else {
+        setToastMsg('구글 로그인에 실패했습니다.');
+      }
+    }
+    setTimeout(() => setToastMsg(''), 4000);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setToastMsg('로그아웃 되었습니다.');
+    } catch (error) {
+      console.error(error);
+    }
+    setTimeout(() => setToastMsg(''), 2000);
+  };
+
+  // 2. 월별 데이터 구독 (Firestore)
   useEffect(() => {
-    if (!user) return;
-    const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'card_state', 'userData');
+    if (!user) return; // 로그인 실패 또는 대기 중일 때는 건너뜀
+    setIsSyncing(true);
+    
+    // 월별 데이터를 저장하는 컬렉션 경로
+    const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'monthly_data', currentMonthStr);
+    
     const unsubscribe = onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        setCards(prevCards => prevCards.map(card => {
+        setCards(prevCards => INITIAL_CARDS.map(card => {
           const cId = String(card.id);
-          const savedLM = data.lastMonthSpends?.[cId];
-          const savedBS = data.spendHistories?.[cId];
+          const savedLM = data.lastMonthSpends?.[cId] || 0;
+          const savedBS = data.spendHistories?.[cId] || {};
           let newSavedAmount = 0;
+          
           if (savedBS) {
             Object.entries(savedBS).forEach(([b_id, histories]) => {
               const targetBenefit = card.detailedBenefits.find(b => b.id === b_id);
@@ -300,30 +348,117 @@ export default function App() {
           }
           return {
             ...card,
-            lastMonthSpend: savedLM !== undefined ? savedLM : card.lastMonthSpend,
-            benefitSpending: savedBS || card.benefitSpending,
+            lastMonthSpend: savedLM,
+            benefitSpending: savedBS,
             savedAmount: newSavedAmount
           };
         }));
+      } else {
+        // 해당 월에 데이터가 없으면 초기화
+        setCards(INITIAL_CARDS.map(c => ({
+          ...c,
+          lastMonthSpend: 0,
+          benefitSpending: {},
+          savedAmount: 0
+        })));
       }
       setIsSyncing(false);
-    }, () => setIsSyncing(false));
+    }, (error) => {
+      console.error("Firestore Snapshot Error", error);
+      setIsSyncing(false);
+    });
     return () => unsubscribe();
-  }, [user]);
+  }, [user, currentMonthStr]);
 
+  // 클라우드 저장 로직
   const saveToCloud = async (newCards) => {
-    if (!user) return;
-    const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'card_state', 'userData');
+    if (!user) {
+      setToastMsg('⚠️ 로그인이 필요합니다. 데이터를 저장할 수 없습니다.');
+      setTimeout(() => setToastMsg(''), 3000);
+      return;
+    }
+    const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'monthly_data', currentMonthStr);
     const lastMonthSpends = {};
     const spendHistories = {};
     newCards.forEach(c => {
       lastMonthSpends[String(c.id)] = c.lastMonthSpend;
       spendHistories[String(c.id)] = c.benefitSpending;
     });
-    await setDoc(docRef, { lastMonthSpends, spendHistories }, { merge: true });
+    try {
+      await setDoc(docRef, { lastMonthSpends, spendHistories }, { merge: true });
+    } catch (e) {
+      console.error("Save Error", e);
+    }
   };
 
-  // 2. Gemini AI 비서 로직
+  // 3. 월 이동 핸들러
+  const handlePrevMonth = () => {
+    setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
+  };
+  const handleNextMonth = () => {
+    setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
+  };
+
+  // 4. 지출 관리 및 업데이트
+  const addSpending = (cardId, benefitId, amount) => {
+    if (!amount || amount <= 0) return;
+    const newCards = cards.map(card => {
+      if (card.id === cardId) {
+        const hist = card.benefitSpending[benefitId] || [];
+        const newHist = [...hist, { id: Date.now(), amount: parseInt(amount), date: new Date().toLocaleDateString() }];
+        const rate = card.detailedBenefits.find(b => b.id === benefitId)?.rate || 0;
+        return {
+          ...card,
+          benefitSpending: { ...card.benefitSpending, [benefitId]: newHist },
+          savedAmount: card.savedAmount + (parseInt(amount) * rate)
+        };
+      }
+      return card;
+    });
+    setCards(newCards);
+    saveToCloud(newCards);
+    setToastMsg('☁️ 클라우드 저장 완료');
+    setTimeout(() => setToastMsg(''), 1500);
+  };
+
+  // 삭제 기능 추가
+  const deleteSpending = (cardId, benefitId, historyId) => {
+    if(!window.confirm("이 내역을 삭제하시겠습니까?")) return;
+    
+    const newCards = cards.map(card => {
+      if (card.id === cardId) {
+        const hist = card.benefitSpending[benefitId] || [];
+        const newHist = hist.filter(h => h.id !== historyId);
+        const removedItem = hist.find(h => h.id === historyId);
+        const rate = card.detailedBenefits.find(b => b.id === benefitId)?.rate || 0;
+        
+        return {
+          ...card,
+          benefitSpending: { ...card.benefitSpending, [benefitId]: newHist },
+          savedAmount: card.savedAmount - ((removedItem?.amount || 0) * rate)
+        };
+      }
+      return card;
+    });
+    setCards(newCards);
+    saveToCloud(newCards);
+    setToastMsg('🗑️ 내역이 삭제되었습니다.');
+    setTimeout(() => setToastMsg(''), 1500);
+  };
+
+  const updateLM = (cardId, val) => {
+    const newVal = parseInt(val) || 0;
+    const newCards = cards.map(c => c.id === cardId ? { ...c, lastMonthSpend: newVal } : c);
+    setCards(newCards);
+    saveToCloud(newCards);
+  };
+
+  const formatWon = (n) => new Intl.NumberFormat('ko-KR').format(n) + '원';
+  const calculateCurrentSpend = (card) => Object.values(card.benefitSpending).flat().reduce((s, i) => s + i.amount, 0);
+  const totalSpendAll = cards.reduce((sum, card) => sum + calculateCurrentSpend(card), 0);
+  const totalSaved = cards.reduce((sum, card) => sum + card.savedAmount, 0);
+
+  // 5. Gemini AI 로직
   const handleSmartPick = async () => {
     if (!aiPickQuery.trim()) return;
     setAiLoading(true);
@@ -367,52 +502,27 @@ export default function App() {
     } finally { setAiLoading(false); }
   };
 
-  // 3. 지출 관리 및 업데이트
-  const addSpending = (cardId, benefitId, amount) => {
-    if (!amount || amount <= 0) return;
-    const newCards = cards.map(card => {
-      if (card.id === cardId) {
-        const hist = card.benefitSpending[benefitId] || [];
-        const newHist = [...hist, { id: Date.now(), amount: parseInt(amount), date: new Date().toLocaleDateString() }];
-        const rate = card.detailedBenefits.find(b => b.id === benefitId)?.rate || 0;
-        return {
-          ...card,
-          benefitSpending: { ...card.benefitSpending, [benefitId]: newHist },
-          savedAmount: card.savedAmount + (parseInt(amount) * rate)
-        };
-      }
-      return card;
-    });
-    setCards(newCards);
-    saveToCloud(newCards);
-    setToastMsg('☁️ 클라우드 저장 완료');
-    setTimeout(() => setToastMsg(''), 1500);
-  };
-
-  const updateLM = (cardId, val) => {
-    const newVal = parseInt(val) || 0;
-    const newCards = cards.map(c => c.id === cardId ? { ...c, lastMonthSpend: newVal } : c);
-    setCards(newCards);
-    saveToCloud(newCards);
-  };
-
-  const formatWon = (n) => new Intl.NumberFormat('ko-KR').format(n) + '원';
-  const calculateCurrentSpend = (card) => Object.values(card.benefitSpending).flat().reduce((s, i) => s + i.amount, 0);
-  const totalSpendAll = cards.reduce((sum, card) => sum + calculateCurrentSpend(card), 0);
-  const totalSaved = cards.reduce((sum, card) => sum + card.savedAmount, 0);
-
   // --- 상세 화면 컴포넌트 ---
   const CardDetail = ({ id, onClose }) => {
     const card = cards.find(c => c.id === id);
-    const [lmVal, setLmVal] = useState(card.lastMonthSpend);
+    const [lmVal, setLmVal] = useState(card?.lastMonthSpend || 0);
+    
+    useEffect(() => {
+      setLmVal(card?.lastMonthSpend || 0);
+    }, [card?.lastMonthSpend]);
+
     if (!card) return null;
 
     return (
       <div className="absolute inset-0 bg-white z-50 overflow-y-auto pb-safe animate-in slide-in-from-right duration-300">
-        <header className="sticky top-0 bg-white/90 backdrop-blur px-5 py-4 border-b flex items-center">
-          <button onClick={onClose} className="p-2 -ml-2 text-gray-800"><ChevronLeft size={28}/></button>
-          <h3 className="ml-2 font-black uppercase text-gray-500 text-xs tracking-widest">상세 관리</h3>
+        <header className="sticky top-0 bg-white/90 backdrop-blur px-5 py-4 border-b flex items-center justify-between">
+          <div className="flex items-center">
+            <button onClick={onClose} className="p-2 -ml-2 text-gray-800"><ChevronLeft size={28}/></button>
+            <h3 className="ml-2 font-black uppercase text-gray-500 text-xs tracking-widest">상세 관리</h3>
+          </div>
+          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">{displayMonthStr}</span>
         </header>
+        
         <div className="p-6">
           <div className={`${card.color} rounded-[32px] p-6 mb-6 text-white shadow-xl`}>
             <p className="text-[10px] font-black opacity-80 mb-1">{card.company}</p>
@@ -436,16 +546,44 @@ export default function App() {
             {card.detailedBenefits.map(db => {
               const isActive = card.lastMonthSpend >= db.minSpend;
               const [amt, setAmt] = useState('');
+              const hist = card.benefitSpending[db.id] || [];
+              const sum = hist.reduce((s, h) => s + h.amount, 0);
+
               return (
                 <div key={db.id} className={isActive ? "opacity-100" : "opacity-30 grayscale pointer-events-none"}>
                   <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1 pr-4"><h5 className="font-black text-[15px]">{db.title}</h5><p className="text-xs text-gray-500 mt-0.5">{db.desc}</p></div>
+                    <div className="flex-1 pr-4"><h5 className="font-black text-[15px] leading-snug">{db.title}</h5><p className="text-xs text-gray-500 mt-0.5">{db.desc}</p></div>
                     {isActive ? <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold shrink-0">적용중</span> : <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full font-bold shrink-0">{formatWon(db.minSpend)}↑ 필요</span>}
                   </div>
                   {isActive && (
-                    <div className="mt-4 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-inner flex space-x-2">
-                      <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="금액" className="flex-1 px-4 py-2 rounded-xl text-sm border-none bg-white font-bold outline-none"/>
-                      <button onClick={() => { addSpending(id, db.id, amt); setAmt(''); }} className="bg-indigo-600 text-white p-2 rounded-xl active:scale-90 transition-transform"><Plus/></button>
+                    <div className="mt-4 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-inner">
+                      <div className="flex justify-between mb-3 items-center">
+                        <span className="text-[10px] font-black text-gray-400">항목 합계: {formatWon(sum)}</span>
+                        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">예상 혜택: {formatWon(sum * db.rate)}</span>
+                      </div>
+                      
+                      {/* 지출 내역 목록 및 삭제 버튼 */}
+                      {hist.length > 0 && (
+                        <div className="mb-4 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                          {hist.map(h => (
+                            <div key={h.id} className="flex justify-between items-center text-xs bg-white border border-gray-200 p-2 rounded-xl">
+                              <span className="text-gray-400 text-[10px]">{h.date}</span>
+                              <div className="flex items-center space-x-3">
+                                <span className="font-black text-gray-700">{formatWon(h.amount)}</span>
+                                <button onClick={() => deleteSpending(id, db.id, h.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+                                  <Trash2 size={16}/>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 입력창 */}
+                      <div className="flex space-x-2">
+                        <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="새로운 금액 입력" className="flex-1 px-4 py-2 rounded-xl text-sm border-none bg-white font-bold outline-none"/>
+                        <button onClick={() => { addSpending(id, db.id, amt); setAmt(''); }} className="bg-indigo-600 text-white p-2 rounded-xl active:scale-90 transition-transform"><Plus/></button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -457,7 +595,7 @@ export default function App() {
     );
   };
 
-  if (isSyncing) {
+  if (isSyncing && !cards.length) {
     return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50"><Loader2 className="animate-spin text-indigo-600 mb-4" size={48}/><p className="font-black text-gray-400 tracking-tighter">데이터 동기화 중...</p></div>;
   }
 
@@ -466,15 +604,39 @@ export default function App() {
       <div className="w-full max-w-md bg-white min-h-screen flex flex-col relative shadow-2xl overflow-hidden border-x">
         <header className="px-6 pt-12 pb-4 bg-white sticky top-0 z-20 flex justify-between items-center border-b">
           <h1 className="text-xl font-black tracking-tight">Smart<span className="text-indigo-600">Card</span></h1>
-          <div className="flex items-center space-x-4">
-            <Cloud className={user ? "text-green-500" : "text-gray-300"} size={20}/>
-            <button className="text-gray-400"><HelpCircle size={20}/></button>
+          <div className="flex items-center space-x-3">
+            {user?.isAnonymous || !user ? (
+              <button onClick={handleGoogleLogin} className="flex items-center text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold hover:bg-indigo-100 transition">
+                <LogIn size={12} className="mr-1"/> 가족 연동
+              </button>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] font-bold text-gray-600">{user?.displayName?.split(' ')[0] || '사용자'}님</span>
+                <button onClick={handleLogout} className="text-gray-400 hover:text-red-500"><LogOut size={16}/></button>
+              </div>
+            )}
           </div>
         </header>
 
+        {/* 월별 네비게이션 컨트롤러 */}
+        <div className="bg-gray-50 px-6 py-3 border-b border-gray-100 flex justify-between items-center z-10 sticky top-[73px]">
+          <button onClick={handlePrevMonth} className="p-1.5 bg-white rounded-lg shadow-sm text-gray-500 hover:text-indigo-600 active:scale-95 transition">
+            <ChevronLeft size={18}/>
+          </button>
+          <div className="flex items-center space-x-2 text-indigo-700 font-black">
+            <CalendarDays size={18}/>
+            <span>{displayMonthStr}</span>
+          </div>
+          <button onClick={handleNextMonth} className="p-1.5 bg-white rounded-lg shadow-sm text-gray-500 hover:text-indigo-600 active:scale-95 transition">
+            <ChevronRight size={18}/>
+          </button>
+        </div>
+
         <main className="flex-1 overflow-y-auto px-6 pb-32 custom-scrollbar">
+          {isSyncing && <div className="absolute top-32 left-1/2 -translate-x-1/2 bg-gray-900/80 text-white px-4 py-2 rounded-full text-xs font-bold flex items-center z-50"><RefreshCw size={14} className="animate-spin mr-2"/>월 데이터 로딩중</div>}
+          
           {activeTab === 'cards' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-left duration-500 pt-2">
+            <div className="space-y-6 animate-in fade-in slide-in-from-left duration-500 pt-4">
               <div className="flex justify-between items-end"><h2 className="text-2xl font-black">내 카드 지갑</h2><span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest font-bold">Manage</span></div>
               <div className="space-y-4">
                 {cards.map(c => {
@@ -499,7 +661,7 @@ export default function App() {
           )}
 
           {activeTab === 'smartPick' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom duration-500 pt-2">
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom duration-500 pt-4">
               <div className="flex flex-col space-y-2 mb-4">
                 <h2 className="text-2xl font-black tracking-tight">✨ AI 스마트 픽</h2>
                 <p className="text-xs text-gray-400 font-medium leading-relaxed">질문을 입력하면 AI가 실적과 혜택을 분석하여 최적의 카드를 골라줍니다.</p>
@@ -534,7 +696,7 @@ export default function App() {
             <div className="space-y-6 animate-in fade-in slide-in-from-right duration-500 pt-4">
               <div className="bg-indigo-600 rounded-[40px] p-8 text-white shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                <p className="text-[10px] font-black uppercase opacity-70 mb-2 tracking-widest">Integrated Report</p>
+                <p className="text-[10px] font-black uppercase opacity-70 mb-2 tracking-widest">{displayMonthStr} Report</p>
                 <p className="text-[10px] font-bold opacity-60">통합 총 지출액</p>
                 <h3 className="text-4xl font-black mb-6 tracking-tight mt-1">{formatWon(totalSpendAll)}</h3>
                 <div className="flex items-center bg-white/20 w-fit px-4 py-2 rounded-2xl backdrop-blur-md border border-white/20">
@@ -564,7 +726,7 @@ export default function App() {
         </nav>
 
         {selectedDetailCardId && <CardDetail id={selectedDetailCardId} onClose={() => setSelectedDetailCardId(null)}/>}
-        {toastMsg && <div className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-2xl text-xs font-bold shadow-2xl z-50 animate-in slide-in-from-bottom-4">{toastMsg}</div>}
+        {toastMsg && <div className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl text-xs font-bold shadow-2xl z-50 animate-in slide-in-from-bottom-4 text-center leading-relaxed">{toastMsg}</div>}
       </div>
       <style>{`
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
