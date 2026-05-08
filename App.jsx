@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { 
   Home, CreditCard, Sparkles, Settings, ChevronRight, ChevronLeft, 
@@ -318,27 +318,38 @@ export default function App() {
       setUser(currentUser);
       if (!currentUser) setIsSyncing(false);
     });
-    return () => unsubscribe();
-  }, []);
 
-  // 구글 로그인 처리
-  const handleGoogleLogin = async () => {
-    try {
-      // 팝업이 차단되었거나 설정이 잘못된 경우를 위한 에러 핸들링 추가
-      await signInWithPopup(auth, googleProvider);
-      setToastMsg('🎉 구글 로그인 성공! 가족과 연동되었습니다.');
-      setAuthError(false); 
-    } catch (error) {
+    // 구글 리다이렉트 로그인 결과 확인
+    getRedirectResult(auth).then((result) => {
+      if (result) {
+        setToastMsg('🎉 구글 로그인 성공! 가족과 연동되었습니다.');
+        setAuthError(false);
+        setTimeout(() => setToastMsg(''), 4000);
+      }
+    }).catch((error) => {
       console.error("구글 로그인 에러:", error);
-      if (error.code === 'auth/popup-blocked') {
-        setToastMsg('🚫 브라우저 팝업이 차단되었습니다. 팝업 차단을 해제하거나 Vercel 주소로 직접 접속해주세요.');
+      if (error.code === 'auth/unauthorized-domain') {
+        setToastMsg('⚠️ Firebase 콘솔 > 인증 > 설정 > 승인된 도메인에 Vercel 주소를 추가해주세요!');
       } else if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
         setToastMsg('⚠️ Firebase 콘솔에서 Google 로그인 제공업체를 먼저 활성화해주세요.');
       } else {
-        setToastMsg(`구글 로그인 실패: ${error.message.split(' (')[0]}`); // 구체적인 에러 메시지 표시
+        setToastMsg(`구글 로그인 실패: ${error.message.split(' (')[0]}`);
       }
+      setTimeout(() => setToastMsg(''), 5000);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // 구글 로그인 처리 (팝업 대신 화면 이동 방식)
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithRedirect(auth, googleProvider);
+    } catch (error) {
+      console.error("구글 로그인 준비 에러:", error);
+      setToastMsg(`로그인 화면 이동 실패: ${error.message.split(' (')[0]}`);
+      setTimeout(() => setToastMsg(''), 5000);
     }
-    setTimeout(() => setToastMsg(''), 4000);
   };
 
   const handleLogout = async () => {
@@ -544,16 +555,24 @@ export default function App() {
   const CardDetail = ({ id, onClose }) => {
     const card = cards.find(c => c.id === id);
     const [lmVal, setLmVal] = useState(card?.lastMonthSpend || 0);
+    const scrollRef = useRef(null); // 스크롤 제어를 위한 Ref 추가
     
     useEffect(() => {
       setLmVal(card?.lastMonthSpend || 0);
     }, [card?.lastMonthSpend]);
 
+    // 카드가 열릴 때마다 스크롤을 무조건 맨 위로 고정
+    useEffect(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo(0, 0);
+      }
+    }, [id]); 
+
     if (!card) return null;
 
     return (
-      <div className="absolute inset-0 bg-white z-50 overflow-y-auto pb-safe animate-in slide-in-from-right duration-300">
-        <header className="sticky top-0 bg-white/90 backdrop-blur px-5 py-4 border-b flex items-center justify-between">
+      <div ref={scrollRef} className="absolute inset-0 bg-white z-50 overflow-y-auto pb-safe animate-in slide-in-from-right duration-300">
+        <header className="sticky top-0 bg-white/90 backdrop-blur px-5 py-4 border-b flex items-center justify-between z-10">
           <div className="flex items-center">
             <button onClick={onClose} className="p-2 -ml-2 text-gray-800"><ChevronLeft size={28}/></button>
             <h3 className="ml-2 font-black uppercase text-gray-500 text-xs tracking-widest">상세 관리</h3>
@@ -787,7 +806,7 @@ export default function App() {
         </nav>
 
         {selectedDetailCardId && <CardDetail id={selectedDetailCardId} onClose={() => setSelectedDetailCardId(null)}/>}
-        {toastMsg && <div className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl text-xs font-bold shadow-2xl z-50 animate-in slide-in-from-bottom-4 text-center leading-relaxed">{toastMsg}</div>}
+        {toastMsg && <div className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl text-xs font-bold shadow-2xl z-50 animate-in slide-in-from-bottom-4 text-center leading-relaxed whitespace-pre-wrap">{toastMsg}</div>}
       </div>
       <style>{`
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
