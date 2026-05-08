@@ -24,7 +24,6 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 
-// 구글 로그인 시 항상 계정 선택 창이 뜨도록 설정 추가
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
@@ -321,6 +320,10 @@ export default function App() {
   const currentMonthStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}`;
   const displayMonthStr = `${String(selectedDate.getFullYear()).slice(2)}년 ${selectedDate.getMonth() + 1}월`;
 
+  // --- 스와이프(제스처) 상태 관리 ---
+  const [mainTouchStart, setMainTouchStart] = useState(null);
+  const [mainTouchEnd, setMainTouchEnd] = useState(null);
+
   // 1. Firebase 인증 및 실시간 동기화
   useEffect(() => {
     const initAuth = async () => {
@@ -371,16 +374,13 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 구글 로그인 처리 (팝업 대신 화면 이동 방식)
   const handleGoogleLogin = async () => {
-    // 카카오톡 내장 브라우저 차단 우회 안내
     const isKakaoTalk = /kakaotalk/i.test(navigator.userAgent);
     if (isKakaoTalk) {
       setToastMsg('🚫 카카오톡 브라우저에서는 구글 로그인이 막혀있습니다. 화면 우측 하단(⁝)을 눌러 [다른 브라우저로 열기(Safari/Chrome)]를 선택해주세요!');
       setTimeout(() => setToastMsg(''), 7000);
       return;
     }
-
     try {
       await signInWithRedirect(auth, googleProvider);
     } catch (error) {
@@ -404,7 +404,6 @@ export default function App() {
     setTimeout(() => setToastMsg(''), 2000);
   };
 
-  // 2. 월별 데이터 구독 (Firestore)
   useEffect(() => {
     if (!user || authError) {
       setIsSyncing(false); 
@@ -412,9 +411,7 @@ export default function App() {
     }
     
     setIsSyncing(true);
-    
     const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'monthly_data', currentMonthStr);
-    
     const unsubscribe = onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
@@ -455,7 +452,6 @@ export default function App() {
     return () => unsubscribe();
   }, [user, currentMonthStr, authError]);
 
-  // 클라우드 저장 로직
   const saveToCloud = async (newCards) => {
     if (authError || !user) {
       setToastMsg('⚠️ 인증 설정이 완료되지 않아 데이터가 기기에만 임시 저장됩니다.');
@@ -476,15 +472,9 @@ export default function App() {
     }
   };
 
-  // 3. 월 이동 핸들러
-  const handlePrevMonth = () => {
-    setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
-  };
-  const handleNextMonth = () => {
-    setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
-  };
+  const handlePrevMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
+  const handleNextMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
 
-  // 4. 지출 관리 및 업데이트
   const addSpending = (cardId, benefitId, amount, customDate = null) => {
     if (!amount || amount <= 0) return;
     const newCards = cards.map(card => {
@@ -509,17 +499,14 @@ export default function App() {
     }
   };
 
-  // 삭제 기능 추가
   const deleteSpending = (cardId, benefitId, historyId) => {
     if(!window.confirm("이 내역을 삭제하시겠습니까?")) return;
-    
     const newCards = cards.map(card => {
       if (card.id === cardId) {
         const hist = card.benefitSpending[benefitId] || [];
         const newHist = hist.filter(h => h.id !== historyId);
         const removedItem = hist.find(h => h.id === historyId);
         const rate = card.detailedBenefits.find(b => b.id === benefitId)?.rate || 0;
-        
         return {
           ...card,
           benefitSpending: { ...card.benefitSpending, [benefitId]: newHist },
@@ -549,7 +536,24 @@ export default function App() {
   const totalSpendAll = cards.reduce((sum, card) => sum + (card.id === 3 ? 0 : calculateCurrentSpend(card)), 0);
   const totalSaved = cards.reduce((sum, card) => sum + card.savedAmount, 0);
 
-  // 5. Gemini AI 로직
+  // 메인 스와이프 제스처 처리
+  const onMainTouchStart = (e) => {
+    setMainTouchEnd(null);
+    setMainTouchStart(e.targetTouches[0].clientX);
+  };
+  const onMainTouchMove = (e) => setMainTouchEnd(e.targetTouches[0].clientX);
+  const onMainTouchEnd = () => {
+    if (!mainTouchStart || !mainTouchEnd) return;
+    const distance = mainTouchStart - mainTouchEnd;
+    const tabs = ['cards', 'smartPick', 'home'];
+    const currentIndex = tabs.indexOf(activeTab);
+    // 왼쪽으로 쓸어넘기기 (오른쪽에서 왼쪽으로 터치 이동) -> 다음 탭 이동
+    if (distance > 50 && currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1]); 
+    // 오른쪽으로 쓸어넘기기 (왼쪽에서 오른쪽으로 터치 이동) -> 이전 탭 이동
+    if (distance < -50 && currentIndex > 0) setActiveTab(tabs[currentIndex - 1]); 
+  };
+
+  // 5. Gemini AI 로직 (검색 방지 및 자체 데이터만 사용하도록 프롬프트 강화)
   const handleSmartPick = async () => {
     if (!aiPickQuery.trim()) return;
     setAiLoading(true);
@@ -562,14 +566,14 @@ export default function App() {
       target: c.target
     }));
 
+    const promptText = `질문: ${aiPickQuery}\n\n[보유 카드 상황]\n${JSON.stringify(context)}`;
+    const systemInstruction = `당신은 스마트 카드 비서입니다. 절대 인터넷 웹 검색을 하지 마세요. 오직 제공된 '[보유 카드 상황]' JSON 데이터 안에서만 100% 기준으로 답변하세요. 외부 정보 사용은 절대 금지됩니다. 사용자의 질문에 맞춰 혜택이 큰 카드 1개를 추천하고, 제공된 데이터를 근거로 3줄 이내로 간결하게 요약하세요.`;
+
     try {
-      const result = await fetchGemini(
-        `상황: ${aiPickQuery}\n보유 카드 상황: ${JSON.stringify(context)}`,
-        "대한민국 카드 전문가로서 사용자의 질문에 맞춰 가장 적합한 카드 1개를 추천하고 이유를 짧게 설명하세요. 실적 현황을 반드시 고려하세요."
-      );
+      const result = await fetchGemini(promptText, systemInstruction);
       setAiResponse(result);
     } catch (e) {
-      setToastMsg("AI 연결 오류");
+      setToastMsg("AI 연결 오류 (프롬프트 설정 재확인 중)");
     } finally { setAiLoading(false); }
   };
 
@@ -585,7 +589,7 @@ export default function App() {
     try {
       const result = await fetchGemini(
         `소비 요약: ${JSON.stringify(summary)}`,
-        "금융 분석가로서 이번 달 카드 지출과 받은 혜택을 분석하고, 더 효율적인 소비를 위한 팁 3가지를 한국어로 제안하세요."
+        "금융 분석가로서 오직 위의 소비 요약 데이터만 보고, 더 효율적인 소비 팁 3가지를 한국어로 제안하세요."
       );
       setAiAnalysisReport(result);
     } catch (e) {
@@ -599,6 +603,9 @@ export default function App() {
     const [lmVal, setLmVal] = useState(card?.lastMonthSpend || 0);
     const scrollRef = useRef(null); 
     
+    const [detailTouchStart, setDetailTouchStart] = useState(null);
+    const [detailTouchEnd, setDetailTouchEnd] = useState(null);
+
     useEffect(() => {
       setLmVal(card?.lastMonthSpend || 0);
     }, [card?.lastMonthSpend]);
@@ -606,30 +613,35 @@ export default function App() {
     // 카드가 열릴 때마다 스크롤을 무조건 맨 위로 고정 (강제 렌더링 및 애니메이션 동기화)
     useEffect(() => {
       const forceScrollTop = () => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = 0;
-        }
+        if (scrollRef.current) scrollRef.current.scrollTop = 0;
       };
+      forceScrollTop(); // 컴포넌트 렌더링 즉시 실행
+      const timer1 = setTimeout(forceScrollTop, 50); // 렌더링 직후 재확인
+      const timer2 = setTimeout(forceScrollTop, 350); // 슬라이드 애니메이션 완료 후 확정
+      return () => { clearTimeout(timer1); clearTimeout(timer2); };
+    }, [id]); 
 
-      // 1. 컴포넌트 렌더링 즉시 최상단 이동
-      forceScrollTop();
-      
-      // 2. 브라우저가 화면을 그리는 찰나의 시간(10ms) 이후 다시 한번 강력하게 고정
-      const timer1 = setTimeout(forceScrollTop, 10);
-      
-      // 3. 슬라이드 애니메이션(duration-300)이 완전히 끝난 350ms 시점에 최종적으로 못 박기
-      const timer2 = setTimeout(forceScrollTop, 350);
-
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-      };
-    }, []); 
+    // 아이폰 뒤로가기 스와이프 제스처 (왼쪽에서 오른쪽으로 넘기기)
+    const onDetailTouchStart = (e) => {
+      setDetailTouchEnd(null);
+      setDetailTouchStart(e.targetTouches[0].clientX);
+    };
+    const onDetailTouchMove = (e) => setDetailTouchEnd(e.targetTouches[0].clientX);
+    const onDetailTouchEnd = () => {
+      if (!detailTouchStart || !detailTouchEnd) return;
+      const distance = detailTouchStart - detailTouchEnd;
+      // 오른쪽으로 쓸어넘기기 (왼쪽에서 오른쪽 터치) -> 뒤로가기
+      if (distance < -50) onClose(); 
+    };
 
     if (!card) return null;
 
     return (
-      <div ref={scrollRef} className="absolute inset-0 bg-white z-50 overflow-y-auto pb-safe animate-in slide-in-from-right duration-300 custom-scrollbar">
+      <div 
+        ref={scrollRef} 
+        onTouchStart={onDetailTouchStart} onTouchMove={onDetailTouchMove} onTouchEnd={onDetailTouchEnd}
+        className="absolute inset-0 bg-white z-50 overflow-y-auto pb-safe animate-in slide-in-from-right duration-300 custom-scrollbar"
+      >
         <header className="sticky top-0 bg-white/90 backdrop-blur px-5 py-4 border-b flex items-center justify-between z-10">
           <div className="flex items-center">
             <button onClick={onClose} className="p-2 -ml-2 text-gray-800"><ChevronLeft size={28}/></button>
@@ -648,7 +660,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="bg-indigo-50 rounded-2xl p-5 mb-8 border border-indigo-100 shadow-inner">
+          <div className="bg-indigo-50 rounded-2xl p-5 mb-6 border border-indigo-100 shadow-inner">
             <p className="text-[11px] font-black text-indigo-400 mb-2 font-bold uppercase">직전달 실적 기입 (혜택 기준)</p>
             <div className="flex items-center space-x-3">
               <input type="number" value={lmVal} onChange={e => setLmVal(e.target.value)} onBlur={() => updateLM(id, lmVal)} className="flex-1 bg-white border-2 border-indigo-100 rounded-xl px-4 py-2 font-black text-indigo-700 outline-none shadow-sm"/>
@@ -656,7 +668,33 @@ export default function App() {
             </div>
           </div>
 
-          <div className="space-y-10">
+          {/* 카드별 통합 할인 한도 표시 UI (표 형식으로 전체 렌더링) */}
+          {card.limitTable && card.limitTable.length > 0 && (
+            <div className="bg-white rounded-2xl p-4 mb-6 border border-indigo-100 shadow-sm">
+              <h4 className="font-black text-[13px] text-indigo-700 mb-3 flex items-center"><Table size={16} className="mr-1"/> 실적별 통합 할인/적립 한도</h4>
+              <div className="space-y-2">
+                {card.limitTable.map((row, idx) => {
+                  const numMatch = row.tier.match(/[0-9]+/);
+                  const req = numMatch ? parseInt(numMatch[0]) * 10000 : 0;
+                  const nextMatch = idx < card.limitTable.length - 1 ? card.limitTable[idx+1].tier.match(/[0-9]+/) : null;
+                  const nextReq = nextMatch ? parseInt(nextMatch[0]) * 10000 : Infinity;
+                  
+                  const isActive = (card.limitTable.length === 1 && req === 0) || (lmVal >= req && lmVal < nextReq);
+
+                  return (
+                    <div key={idx} className={`flex justify-between items-center p-2 rounded-lg text-xs font-bold ${isActive ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'text-gray-400 bg-gray-50'}`}>
+                      <span>{row.tier}</span>
+                      <span className="text-right flex-1 ml-4">{row.limit}</span>
+                      {isActive && <span className="ml-2 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded shrink-0">적용중</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* space-y-10을 space-y-4로 줄여 쓸데없는 여백 제거, 마지막 혜택에서 끝나게 pb-12 적용 */}
+          <div className="space-y-4 pb-12">
             <h4 className="font-black text-lg flex items-center border-b pb-2"><Receipt size={20} className="mr-2 text-indigo-600"/> 혜택별 지출 입력</h4>
             {card.detailedBenefits.map(db => {
               const isActive = card.lastMonthSpend >= db.minSpend;
@@ -733,7 +771,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex justify-center font-sans">
-      <div className="w-full max-w-md bg-white min-h-screen flex flex-col relative shadow-2xl overflow-hidden border-x">
+      <div 
+        className="w-full max-w-md bg-white min-h-screen flex flex-col relative shadow-2xl overflow-hidden border-x"
+        onTouchStart={onMainTouchStart} onTouchMove={onMainTouchMove} onTouchEnd={onMainTouchEnd}
+      >
         {/* 인증 오류 배너 */}
         {authError && (
           <div className="bg-red-50 text-red-600 text-[11px] font-bold px-4 py-2 text-center flex justify-center items-center relative z-30">
