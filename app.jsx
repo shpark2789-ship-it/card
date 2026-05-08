@@ -10,7 +10,7 @@ import {
   BookOpen, MapPin, Baby, Receipt, MousePointer2, Scissors, Table, Film, Ticket, Building, Cloud, HelpCircle, Send, BrainCircuit, AlertTriangle
 } from 'lucide-react';
 
-// --- Firebase Configuration ---
+// --- Firebase Configuration (사용자님 설정 적용됨) ---
 const firebaseConfig = {
   apiKey: "AIzaSyCIvbe4vyGyEMz17A6iHw1m5VloP1jZ0No",
   authDomain: "smart-card-manager-47d8d.firebaseapp.com",
@@ -25,16 +25,17 @@ const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 const appId = 'smart-card-manager-v1';
 
-// --- Gemini API Setup ---
-const geminiApiKey = ""; // API Key is provided at runtime
+// --- Gemini AI Setup ---
+const apiKey = ""; // API Key는 환경에서 제공됩니다.
 
 const fetchGemini = async (prompt, systemInstruction) => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${geminiApiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
   const payload = {
     contents: [{ parts: [{ text: prompt }] }],
     systemInstruction: { parts: [{ text: systemInstruction }] }
   };
 
+  let delay = 1000;
   for (let i = 0; i < 5; i++) {
     try {
       const response = await fetch(url, {
@@ -42,17 +43,18 @@ const fetchGemini = async (prompt, systemInstruction) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text;
-    } catch (e) {
-      if (i === 4) throw e;
-      await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+      const result = await response.json();
+      return result.candidates?.[0]?.content?.parts?.[0]?.text;
+    } catch (error) {
+      if (i === 4) throw error;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
     }
   }
 };
 
-// --- 카드 데이터 세트 (11종 통합) ---
+// --- 카드 데이터 세트 (11종 전체 데이터) ---
 const INITIAL_CARDS = [
   {
     id: 1,
@@ -68,9 +70,10 @@ const INITIAL_CARDS = [
     limitTable: [{ tier: '30만원 이상', limit: '캐시백 5만 + 브런치 2만 + 주유 40만' }],
     detailedBenefits: [
       { id: 'lc_1', icon: <Coffee />, title: '브런치 5% 할인', desc: '11:00~14:00 요식업종', minSpend: 300000, rate: 0.05 },
-      { id: 'lc_2', icon: <Stethoscope />, title: '육아/의료 5% 캐시백', desc: '병원, 약국, 학원', minSpend: 300000, rate: 0.05 },
+      { id: 'lc_2', icon: <Stethoscope />, title: '육아/의료 5% 캐시백', desc: '학원, 서점, 병원, 약국', minSpend: 300000, rate: 0.05 },
       { id: 'lc_3', icon: <ShoppingBag />, title: '쇼핑 3% 캐시백', desc: '백화점, 마트, 온라인몰', minSpend: 300000, rate: 0.03 },
-      { id: 'lc_4', icon: <Utensils />, title: '웰빙 7% 캐시백', desc: '초록마을, 한살림생협', minSpend: 300000, rate: 0.07 }
+      { id: 'lc_4', icon: <Utensils />, title: '웰빙 7% 캐시백', desc: '초록마을, 한살림생협', minSpend: 300000, rate: 0.07 },
+      { id: 'lc_7', icon: <Droplet />, title: 'GS칼텍스 리터당 40원 할인', desc: '주유 시 결제일 할인', minSpend: 300000, rate: 0.02 }
     ]
   },
   {
@@ -86,9 +89,10 @@ const INITIAL_CARDS = [
     savedAmount: 0,
     limitTable: [{ tier: '40만원↑', limit: '마트 1.5만 / 쇼핑 1.5만 / Basic 5천' }],
     detailedBenefits: [
-      { id: 'tb_1_p', icon: <Droplet />, title: '주유 리터당 110점', desc: 'SK/GS 주유소/충전소', minSpend: 400000, rate: 0.07 },
-      { id: 'tb_2_p', icon: <ShoppingCart />, title: '마트 15% 적립', desc: '대형마트 및 하나로식자재', minSpend: 400000, rate: 0.15 },
-      { id: 'tb_3_p', icon: <ShoppingBag />, title: '온라인쇼핑 15% 적립', desc: 'G마켓, 옥션, 11번가 등', minSpend: 400000, rate: 0.15 }
+      { id: 'tb_1_p', icon: <Droplet />, title: '주유 리터당 110점', desc: 'SK/GS칼텍스 주유소', minSpend: 400000, rate: 0.07 },
+      { id: 'tb_2_p', icon: <ShoppingCart />, title: '마트 15%~20% 적립', desc: '이마트, 롯데마트, 홈플러스', minSpend: 400000, rate: 0.15 },
+      { id: 'tb_3_p', icon: <ShoppingBag />, title: '온라인쇼핑몰 15%~20% 적립', desc: 'G마켓, 옥션, 11번가 등', minSpend: 400000, rate: 0.15 },
+      { id: 'tb_4_p', icon: <Monitor />, title: '플러스 O2O 10% 적립', desc: '배달의민족, 마켓컬리 등', minSpend: 400000, rate: 0.1 }
     ]
   },
   {
@@ -102,11 +106,10 @@ const INITIAL_CARDS = [
     lastMonthSpend: 450000,
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '40만원↑', limit: '마트 1.5만 / 쇼핑 1.5만 / Basic 5천' }],
+    limitTable: [{ tier: '40만원↑', limit: '마트 1.5만 / 쇼핑 1.5만' }],
     detailedBenefits: [
-      { id: 'tb_1_k', icon: <Droplet />, title: '주유 리터당 110점', desc: 'SK/GS 주유소/충전소', minSpend: 400000, rate: 0.07 },
-      { id: 'tb_2_k', icon: <ShoppingCart />, title: '마트 15% 적립', desc: '대형마트 및 하나로식자재', minSpend: 400000, rate: 0.15 },
-      { id: 'tb_3_k', icon: <ShoppingBag />, title: '온라인쇼핑 15% 적립', desc: 'G마켓, 옥션, 11번가 등', minSpend: 400000, rate: 0.15 }
+      { id: 'tb_1_k', icon: <Droplet />, title: '주유 리터당 110점', desc: 'SK/GS칼텍스 주유소', minSpend: 400000, rate: 0.07 },
+      { id: 'tb_2_k', icon: <ShoppingCart />, title: '마트 15%~20% 적립', desc: '이마트, 롯데마트, 홈플러스', minSpend: 400000, rate: 0.15 }
     ]
   },
   {
@@ -118,12 +121,12 @@ const INITIAL_CARDS = [
     textColor: 'text-white',
     target: 300000,
     lastMonthSpend: 350000,
-    benefitSpending: {},
+    benefitSpending: {}, 
     savedAmount: 0,
     limitTable: [{ tier: '30만원 이상', limit: '통합 할인 한도 10,000원' }],
     detailedBenefits: [
-      { id: 'mg_1', icon: <ShoppingBag />, title: '쇼핑 5% 할인', desc: '마트, 다이소, 올리브영', minSpend: 300000, rate: 0.05 },
-      { id: 'mg_2', icon: <BookOpen />, title: '학원 5% 할인', desc: '전국 일반 학원 업종', minSpend: 300000, rate: 0.05 }
+      { id: 'mg_1', icon: <ShoppingBag />, title: '쇼핑 5% 청구할인', desc: '마트, 다이소, 올리브영', minSpend: 300000, rate: 0.05 },
+      { id: 'mg_2', icon: <BookOpen />, title: '학원 5% 청구할인', desc: '전국 일반 학원 업종', minSpend: 300000, rate: 0.05 }
     ]
   },
   {
@@ -133,14 +136,14 @@ const INITIAL_CARDS = [
     type: '할인형',
     color: 'bg-gradient-to-br from-sky-400 to-blue-500',
     textColor: 'text-white',
-    target: 300000,
-    lastMonthSpend: 150000,
+    target: 300000, 
+    lastMonthSpend: 150000, 
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '10만원 이상', limit: '교통 3천원' }],
+    limitTable: [{ tier: '10만원 이상', limit: '교통 3천 / 마트 5천' }],
     detailedBenefits: [
-      { id: 'dh_1', icon: <MapPin />, title: '공공시설 할인', desc: '서울시 공영주차장 등', minSpend: 0, rate: 0.3 },
-      { id: 'dh_2', icon: <Bus />, title: '대중교통 10%', desc: '버스, 지하철', minSpend: 100000, rate: 0.1 }
+      { id: 'dh_1', icon: <MapPin />, title: '공공시설 할인 (무실적)', desc: '서울시 공영주차장 등', minSpend: 0, rate: 0.3 },
+      { id: 'dh_2', icon: <Bus />, title: '대중교통 10% 할인', desc: '버스, 지하철 요금 청구 할인', minSpend: 100000, rate: 0.1 }
     ]
   },
   {
@@ -150,14 +153,14 @@ const INITIAL_CARDS = [
     type: '포인트형',
     color: 'bg-gradient-to-br from-teal-500 to-emerald-700',
     textColor: 'text-white',
-    target: 300000,
-    lastMonthSpend: 310000,
+    target: 300000, 
+    lastMonthSpend: 310000, 
     benefitSpending: {},
     savedAmount: 0,
     limitTable: [{ tier: '30만원 이상', limit: '특별 한도 1만점' }],
     detailedBenefits: [
-      { id: 'wow_1', icon: <Wifi />, title: '통신/교통 5%', desc: '자동이체 및 교통', minSpend: 300000, rate: 0.05 },
-      { id: 'wow_2', icon: <Smartphone />, title: '간편결제 3% 추가', desc: '네이버/카카오/PAYCO', minSpend: 300000, rate: 0.03 }
+      { id: 'wow_1', icon: <Wifi />, title: '통신/대중교통 5% 적립', desc: '자동이체 및 버스/지하철', minSpend: 300000, rate: 0.05 },
+      { id: 'wow_2', icon: <Smartphone />, title: '간편결제 3% 추가 적립', desc: '네이버/카카오/PAYCO 등', minSpend: 300000, rate: 0.03 }
     ]
   },
   {
@@ -167,13 +170,13 @@ const INITIAL_CARDS = [
     type: '할인형',
     color: 'bg-gradient-to-br from-red-500 to-red-700',
     textColor: 'text-white',
-    target: 300000,
-    lastMonthSpend: 350000,
+    target: 300000, 
+    lastMonthSpend: 350000, 
     benefitSpending: {},
     savedAmount: 0,
     limitTable: [{ tier: '30만원 이상', limit: '온라인 4천 / 오프라인 6천' }],
     detailedBenefits: [
-      { id: 'sh_1', icon: <ShoppingBag />, title: '온라인 10% 할인', desc: '쿠팡, G마켓 등', minSpend: 300000, rate: 0.1 }
+      { id: 'sh_1', icon: <ShoppingBag />, title: '온라인 쇼핑 10% 할인', desc: '주요 온라인 쇼핑몰', minSpend: 300000, rate: 0.1 }
     ]
   },
   {
@@ -183,13 +186,13 @@ const INITIAL_CARDS = [
     type: '포인트형',
     color: 'bg-gradient-to-br from-green-500 to-green-700',
     textColor: 'text-white',
-    target: 200000,
-    lastMonthSpend: 250000,
+    target: 200000, 
+    lastMonthSpend: 250000, 
     benefitSpending: {},
     savedAmount: 0,
     limitTable: [{ tier: '20만원 이상', limit: '적립 1만점' }],
     detailedBenefits: [
-      { id: 'gs_1', icon: <ShoppingBag />, title: 'SmilePay 10%', desc: 'G마켓, 옥션 결제', minSpend: 200000, rate: 0.1 }
+      { id: 'gs_1', icon: <ShoppingBag />, title: 'SmilePay 10% 적립', desc: 'G마켓, 옥션 결제', minSpend: 200000, rate: 0.1 }
     ]
   },
   {
@@ -199,14 +202,14 @@ const INITIAL_CARDS = [
     type: '할인형',
     color: 'bg-teal-400',
     textColor: 'text-gray-900',
-    target: 0,
-    lastMonthSpend: 0,
-    benefitSpending: {},
+    target: 0, 
+    lastMonthSpend: 0, 
+    benefitSpending: {}, 
     savedAmount: 0,
-    limitTable: [{ tier: '무실적', limit: '무제한' }],
+    limitTable: [{ tier: '무실적', limit: '할인 한도 무제한' }],
     detailedBenefits: [
-      { id: 'wd_1', icon: <Globe />, title: '전가맹점 0.7%', desc: '조건 없이 무제한', minSpend: 0, rate: 0.007 },
-      { id: 'wd_2', icon: <Smartphone />, title: '간편결제 1.2%', desc: '네이버/카카오/삼성페이', minSpend: 0, rate: 0.012 }
+      { id: 'wd_1', icon: <Globe />, title: '전가맹점 0.7% 할인', desc: '조건 없이 무제한', minSpend: 0, rate: 0.007 },
+      { id: 'wd_2', icon: <Smartphone />, title: '온라인 간편결제 1.2% 할인', desc: '하나/네이버/카카오/삼성페이', minSpend: 0, rate: 0.012 }
     ]
   },
   {
@@ -220,9 +223,9 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0,
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '무실적', limit: '5만원' }],
+    limitTable: [{ tier: '무실적', limit: '최대 5만원 캐시백' }],
     detailedBenefits: [
-      { id: 'kb_k1', icon: <Globe />, title: '결제횟수 캐시백', desc: '5천원↑ 결제 카운트', minSpend: 0, rate: 0.01 }
+      { id: 'kb_k1', icon: <Globe />, title: '결제횟수 캐시백', desc: '5천원 이상 결제 카운트', minSpend: 0, rate: 0.01 }
     ]
   },
   {
@@ -236,10 +239,10 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0,
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{ tier: '무실적', limit: 'KB Pay 1만점' }],
+    limitTable: [{ tier: '무실적', limit: 'KB Pay 추가 1만점' }],
     detailedBenefits: [
-      { id: 'kb_tok1', icon: <Globe />, title: '기본 0.5% 적립', desc: '전 가맹점 무제한', minSpend: 0, rate: 0.005 },
-      { id: 'kb_tok2', icon: <Smartphone />, title: 'KB Pay 5% 추가', desc: 'KB Pay 결제 시', minSpend: 0, rate: 0.05 }
+      { id: 'kb_tok1', icon: <Globe />, title: '기본 0.5% 적립', desc: '전 가맹점 무실적 무제한', minSpend: 0, rate: 0.005 },
+      { id: 'kb_tok2', icon: <Smartphone />, title: 'KB Pay 5% 추가 적립', desc: 'KB Pay 결제 시', minSpend: 0, rate: 0.05 }
     ]
   }
 ];
@@ -252,13 +255,13 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [isSyncing, setIsSyncing] = useState(true);
 
-  // AI State
+  // AI 관련 상태
   const [aiLoading, setAiLoading] = useState(false);
   const [aiPickQuery, setAiPickQuery] = useState('');
   const [aiResponse, setAiResponse] = useState(null);
   const [analysisReport, setAiAnalysisReport] = useState(null);
 
-  // 1. Firebase Auth & Sync
+  // 1. Firebase 인증 및 실시간 동기화
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -320,7 +323,7 @@ export default function App() {
     await setDoc(docRef, { lastMonthSpends, spendHistories }, { merge: true });
   };
 
-  // 2. AI 추천 및 분석
+  // 2. Gemini AI 비서 로직
   const handleSmartPick = async () => {
     if (!aiPickQuery.trim()) return;
     setAiLoading(true);
@@ -335,8 +338,8 @@ export default function App() {
 
     try {
       const result = await fetchGemini(
-        `상황: ${aiPickQuery}\n보유 카드: ${JSON.stringify(context)}`,
-        "대한민국 카드 전문가로서 상황에 가장 적합한 카드를 1개 추천하고 이유를 짧게 설명하세요. 실적 현황을 꼭 고려하세요."
+        `상황: ${aiPickQuery}\n보유 카드 상황: ${JSON.stringify(context)}`,
+        "대한민국 카드 전문가로서 사용자의 질문에 맞춰 가장 적합한 카드 1개를 추천하고 이유를 짧게 설명하세요. 실적 현황을 반드시 고려하세요."
       );
       setAiResponse(result);
     } catch (e) {
@@ -356,15 +359,15 @@ export default function App() {
     try {
       const result = await fetchGemini(
         `소비 요약: ${JSON.stringify(summary)}`,
-        "금융 분석가로서 이번 달 카드 소비 현황을 분석하고 개선 팁 3가지를 한국어로 작성하세요."
+        "금융 분석가로서 이번 달 카드 지출과 받은 혜택을 분석하고, 더 효율적인 소비를 위한 팁 3가지를 한국어로 제안하세요."
       );
       setAiAnalysisReport(result);
     } catch (e) {
-      setToastMsg("분석 오류");
+      setToastMsg("분석 리포트 오류");
     } finally { setAiLoading(false); }
   };
 
-  // 3. 지출 관리 로직
+  // 3. 지출 관리 및 업데이트
   const addSpending = (cardId, benefitId, amount) => {
     if (!amount || amount <= 0) return;
     const newCards = cards.map(card => {
@@ -407,21 +410,21 @@ export default function App() {
     return (
       <div className="absolute inset-0 bg-white z-50 overflow-y-auto pb-safe animate-in slide-in-from-right duration-300">
         <header className="sticky top-0 bg-white/90 backdrop-blur px-5 py-4 border-b flex items-center">
-          <button onClick={onClose} className="p-2 -ml-2"><ChevronLeft size={28}/></button>
-          <h3 className="ml-2 font-black uppercase text-gray-500 text-xs">Benefit Detail</h3>
+          <button onClick={onClose} className="p-2 -ml-2 text-gray-800"><ChevronLeft size={28}/></button>
+          <h3 className="ml-2 font-black uppercase text-gray-500 text-xs tracking-widest">상세 관리</h3>
         </header>
         <div className="p-6">
           <div className={`${card.color} rounded-[32px] p-6 mb-6 text-white shadow-xl`}>
             <p className="text-[10px] font-black opacity-80 mb-1">{card.company}</p>
-            <h2 className="text-xl font-black mb-6">{card.name}</h2>
+            <h2 className="text-xl font-black mb-6 leading-tight">{card.name}</h2>
             <div className="flex justify-between items-end">
               <div><p className="text-[10px] font-black opacity-70">이번 달 사용</p><p className="text-2xl font-black">{formatWon(calculateCurrentSpend(card))}</p></div>
               <div className="text-right"><p className="text-[10px] font-black opacity-70">누적 혜택</p><p className="text-lg font-black">{formatWon(card.savedAmount)}</p></div>
             </div>
           </div>
 
-          <div className="bg-indigo-50 rounded-2xl p-5 mb-8 border border-indigo-100">
-            <p className="text-[11px] font-black text-indigo-400 mb-2 font-bold uppercase">전월 실적 기입</p>
+          <div className="bg-indigo-50 rounded-2xl p-5 mb-8 border border-indigo-100 shadow-inner">
+            <p className="text-[11px] font-black text-indigo-400 mb-2 font-bold uppercase">직전달 실적 기입 (혜택 기준)</p>
             <div className="flex items-center space-x-3">
               <input type="number" value={lmVal} onChange={e => setLmVal(e.target.value)} onBlur={() => updateLM(id, lmVal)} className="flex-1 bg-white border-2 border-indigo-100 rounded-xl px-4 py-2 font-black text-indigo-700 outline-none shadow-sm"/>
               <span className="font-bold text-indigo-600">원</span>
@@ -437,7 +440,7 @@ export default function App() {
                 <div key={db.id} className={isActive ? "opacity-100" : "opacity-30 grayscale pointer-events-none"}>
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1 pr-4"><h5 className="font-black text-[15px]">{db.title}</h5><p className="text-xs text-gray-500 mt-0.5">{db.desc}</p></div>
-                    {isActive ? <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold">적용중</span> : <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full font-bold">{formatWon(db.minSpend)}↑</span>}
+                    {isActive ? <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold shrink-0">적용중</span> : <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full font-bold shrink-0">{formatWon(db.minSpend)}↑ 필요</span>}
                   </div>
                   {isActive && (
                     <div className="mt-4 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-inner flex space-x-2">
@@ -472,7 +475,7 @@ export default function App() {
         <main className="flex-1 overflow-y-auto px-6 pb-32 custom-scrollbar">
           {activeTab === 'cards' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-left duration-500 pt-2">
-              <div className="flex justify-between items-end"><h2 className="text-2xl font-black">내 카드 지갑</h2><span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Manage</span></div>
+              <div className="flex justify-between items-end"><h2 className="text-2xl font-black">내 카드 지갑</h2><span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest font-bold">Manage</span></div>
               <div className="space-y-4">
                 {cards.map(c => {
                   const s = calculateCurrentSpend(c);
@@ -499,7 +502,7 @@ export default function App() {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom duration-500 pt-2">
               <div className="flex flex-col space-y-2 mb-4">
                 <h2 className="text-2xl font-black tracking-tight">✨ AI 스마트 픽</h2>
-                <p className="text-xs text-gray-400 font-medium">상황을 입력하면 AI가 최적의 카드를 추천합니다.</p>
+                <p className="text-xs text-gray-400 font-medium leading-relaxed">질문을 입력하면 AI가 실적과 혜택을 분석하여 최적의 카드를 골라줍니다.</p>
               </div>
 
               <div className="bg-indigo-50 rounded-3xl p-5 border border-indigo-100 shadow-inner">
@@ -508,11 +511,11 @@ export default function App() {
                     type="text" 
                     value={aiPickQuery} 
                     onChange={e => setAiPickQuery(e.target.value)} 
-                    placeholder="예: 오늘 주유소에 갈 건데 뭐 쓸까?" 
+                    placeholder="예: 오늘 점심 먹으러 갈 건데 뭐 쓸까?" 
                     className="flex-1 px-4 py-2 text-sm border-none bg-transparent outline-none font-medium"
                     onKeyPress={e => e.key === 'Enter' && handleSmartPick()}
                   />
-                  <button onClick={handleSmartPick} disabled={aiLoading} className="bg-indigo-600 text-white p-2 rounded-xl active:scale-90 transition-all">
+                  <button onClick={handleSmartPick} disabled={aiLoading} className="bg-indigo-600 text-white p-2 rounded-xl disabled:opacity-50 transition-all active:scale-90">
                     {aiLoading ? <Loader2 className="animate-spin" size={20}/> : <Send size={20}/>}
                   </button>
                 </div>
