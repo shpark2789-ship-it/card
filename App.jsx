@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { 
   Home, CreditCard, Sparkles, Settings, ChevronRight, ChevronLeft, 
   CheckCircle2, Coffee, ShoppingCart, Bus, Utensils, Stethoscope, TrendingUp, 
   RefreshCw, Loader2, Plus, Droplet, ShoppingBag, MoreHorizontal, 
   Smartphone, Globe, Briefcase, Wifi, Monitor, Plane, Gift, History, 
-  BookOpen, MapPin, Baby, Receipt, MousePointer2, Scissors, Table, Film, Ticket, Building, Cloud, HelpCircle, Send, BrainCircuit, AlertTriangle, LogIn, LogOut, CalendarDays, Trash2
+  BookOpen, MapPin, Baby, Receipt, MousePointer2, Scissors, Table, Film, Ticket, Building, Cloud, HelpCircle, Send, BrainCircuit, AlertTriangle, CalendarDays, Trash2
 } from 'lucide-react';
 
 // --- Firebase Configuration ---
@@ -23,9 +23,6 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
-
-const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-card-manager-v1';
 
@@ -315,7 +312,7 @@ export default function App() {
   const currentMonthStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}`;
   const displayMonthStr = `${String(selectedDate.getFullYear()).slice(2)}년 ${selectedDate.getMonth() + 1}월`;
 
-  // 1. Firebase 인증
+  // 1. Firebase 인증 (익명 로그인만 사용 - 구글 로그인 완전 제거)
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -336,35 +333,17 @@ export default function App() {
       if (!currentUser) setIsSyncing(false);
     });
 
-    getRedirectResult(auth).then((result) => {
-      if (result) {
-        setToastMsg('🎉 구글 로그인 성공! 가족과 연동되었습니다.');
-        setAuthError(false);
-        setTimeout(() => setToastMsg(''), 4000);
-      }
-    }).catch(() => {});
-
     return () => unsubscribe();
   }, []);
 
-  const handleGoogleLogin = async () => {
-    if (/kakaotalk/i.test(navigator.userAgent)) {
-      setToastMsg('🚫 카카오톡 브라우저에서는 구글 로그인이 막혀있습니다. 우측 하단(⁝)을 눌러 [다른 브라우저로 열기]를 선택해주세요!');
-      return;
-    }
-    try { await signInWithRedirect(auth, googleProvider); } catch (e) {}
-  };
-
-  const handleLogout = async () => {
-    try { await signOut(auth); setToastMsg('로그아웃 되었습니다.'); } catch (e) {}
-    setTimeout(() => setToastMsg(''), 2000);
-  };
-
-  // 2. 실시간 데이터 동기화
+  // 2. 실시간 데이터 동기화 (가족 공유 Public DB 경로 사용)
   useEffect(() => {
     if (!user || authError) { setIsSyncing(false); return; }
     setIsSyncing(true);
-    const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'monthly_data', currentMonthStr);
+    
+    // 💡 핵심: user.uid 대신 'shared_monthly_data' 라는 고정된 경로를 사용하여 구글 로그인 없이 데이터를 완벽 공유!
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shared_monthly_data', currentMonthStr);
+    
     const unsubscribe = onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
@@ -398,7 +377,8 @@ export default function App() {
 
   const saveToCloud = async (newCards) => {
     if (authError || !user) return;
-    const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'monthly_data', currentMonthStr);
+    // 💡 저장 경로도 공유 데이터베이스로 통일
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shared_monthly_data', currentMonthStr);
     const lastMonthSpends = {};
     const spendHistories = {};
     newCards.forEach(c => {
@@ -429,7 +409,7 @@ export default function App() {
     });
     setCards(newCards);
     saveToCloud(newCards);
-    if (!authError) { setToastMsg('☁️ 클라우드 저장 완료'); setTimeout(() => setToastMsg(''), 1500); }
+    if (!authError) { setToastMsg('☁️ 클라우드 동기화 완료'); setTimeout(() => setToastMsg(''), 1500); }
   };
 
   const deleteSpending = (cardId, benefitId, historyId) => {
@@ -506,7 +486,7 @@ export default function App() {
       window.scrollTo(0, 0);
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       setLmVal(card?.lastMonthSpend || 0);
-    }, [id]);
+    }, [id, card?.lastMonthSpend]);
 
     const onTouchStart = (e) => { setTouchEnd(null); setTouchStart(e.targetTouches[0].clientX); };
     const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
@@ -644,9 +624,10 @@ export default function App() {
         <header className="px-6 pt-12 pb-4 bg-white border-b flex justify-between items-center z-20">
           <h1 className="text-xl font-black tracking-tight">Smart<span className="text-indigo-600">Card</span></h1>
           <div className="flex items-center space-x-3">
-            {!user || user.isAnonymous ? (<button onClick={handleGoogleLogin} className="flex items-center text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold hover:bg-indigo-100"><LogIn size={12} className="mr-1"/> 가족 연동</button>) : (
-              <div className="flex items-center space-x-2"><span className="text-[10px] font-bold text-gray-600">{user?.displayName?.split(' ')[0] || '사용자'}님</span><button onClick={handleLogout} className="text-gray-400 hover:text-red-500"><LogOut size={16}/></button></div>
-            )}
+            <div className="flex items-center space-x-1 bg-green-50 px-3 py-1.5 rounded-full border border-green-100">
+               <Cloud className="text-green-500" size={14} />
+               <span className="text-[10px] font-bold text-green-700">가족 공유 중</span>
+            </div>
           </div>
         </header>
 
@@ -673,7 +654,7 @@ export default function App() {
                       </div>
                       <div className="mt-4 pt-4 border-t flex justify-between items-center border-gray-50">
                         <span className="text-[11px] font-black text-gray-400">{c.id === 3 ? `이번 달 기록: ${getCardCountSum(c)}회` : `이번 달 사용: ${formatWon(s)}`}</span>
-                        <span className={`text-[11px] font-black ${met ? 'text-green-500' : 'text-indigo-500'}`}>{met ? '실적 달성' : `부족 ${formatWon(c.target - s)}`}</span>
+                        <span className={`text-[11px] font-black ${met ? 'text-green-500' : 'text-indigo-500'}`}>{c.id === 3 ? '기록 중' : (met ? '실적 달성' : `부족 ${formatWon(c.target - s)}`)}</span>
                       </div>
                     </div>
                   );
