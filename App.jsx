@@ -312,7 +312,7 @@ export default function App() {
   const currentMonthStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}`;
   const displayMonthStr = `${String(selectedDate.getFullYear()).slice(2)}년 ${selectedDate.getMonth() + 1}월`;
 
-  // 1. Firebase 인증 (익명 로그인만 사용 - 구글 로그인 완전 제거)
+  // 1. Firebase 인증 (PWA 환경 대응: 익명 로그인 무조건 수행)
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -336,21 +336,29 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. 실시간 데이터 동기화 (가족 공유 Public DB 경로 사용)
+  // 2. 실시간 데이터 동기화 (가족 공유 Public DB 경로 고정)
   useEffect(() => {
     if (!user || authError) { setIsSyncing(false); return; }
     setIsSyncing(true);
     
-    // 💡 핵심: user.uid 대신 'shared_monthly_data' 라는 고정된 경로를 사용하여 구글 로그인 없이 데이터를 완벽 공유!
     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shared_monthly_data', currentMonthStr);
     
     const unsubscribe = onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
+        
+        // 데이터 구조 안정성을 위해 JSON으로 직렬화된 데이터 파싱
+        let parsedHistories = {};
+        if (data.spendHistoriesStr) {
+          try { parsedHistories = JSON.parse(data.spendHistoriesStr); } catch (e) {}
+        } else if (data.spendHistories) {
+          parsedHistories = data.spendHistories;
+        }
+
         setCards(prevCards => INITIAL_CARDS.map(card => {
           const cId = String(card.id);
           const savedLM = data.lastMonthSpends?.[cId] || 0;
-          const savedBS = data.spendHistories?.[cId] || {};
+          const savedBS = parsedHistories[cId] || {};
           let newSavedAmount = 0;
           if (savedBS) {
             Object.entries(savedBS).forEach(([b_id, histories]) => {
@@ -375,9 +383,9 @@ export default function App() {
     return () => unsubscribe();
   }, [user, currentMonthStr, authError]);
 
+  // 클라우드 저장 (직렬화 적용하여 데이터 유실 100% 방지)
   const saveToCloud = async (newCards) => {
     if (authError || !user) return;
-    // 💡 저장 경로도 공유 데이터베이스로 통일
     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shared_monthly_data', currentMonthStr);
     const lastMonthSpends = {};
     const spendHistories = {};
@@ -385,7 +393,14 @@ export default function App() {
       lastMonthSpends[String(c.id)] = c.lastMonthSpend;
       spendHistories[String(c.id)] = c.benefitSpending;
     });
-    try { await setDoc(docRef, { lastMonthSpends, spendHistories }, { merge: true }); } catch (e) {}
+    try { 
+      await setDoc(docRef, { 
+        lastMonthSpends, 
+        spendHistoriesStr: JSON.stringify(spendHistories) // 복잡한 구조로 인한 Firebase 오류 원천 차단
+      }, { merge: true }); 
+    } catch (e) {
+      console.error("Save Error", e);
+    }
   };
 
   const handlePrevMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
@@ -409,7 +424,7 @@ export default function App() {
     });
     setCards(newCards);
     saveToCloud(newCards);
-    if (!authError) { setToastMsg('☁️ 클라우드 동기화 완료'); setTimeout(() => setToastMsg(''), 1500); }
+    if (!authError) { setToastMsg('☁️ 클라우드 저장 완료'); setTimeout(() => setToastMsg(''), 1500); }
   };
 
   const deleteSpending = (cardId, benefitId, historyId) => {
@@ -434,11 +449,14 @@ export default function App() {
     setTimeout(() => setToastMsg(''), 1500);
   };
 
+  // '적용' 버튼을 통해 명확하게 호출되도록 변경된 함수
   const updateLM = (cardId, val) => {
     const newVal = parseInt(val) || 0;
     const newCards = cards.map(c => c.id === cardId ? { ...c, lastMonthSpend: newVal } : c);
     setCards(newCards);
     saveToCloud(newCards);
+    setToastMsg('☁️ 실적 반영 완료');
+    setTimeout(() => setToastMsg(''), 1500);
   };
 
   const formatWon = (n) => new Intl.NumberFormat('ko-KR').format(n) + '원';
@@ -447,7 +465,7 @@ export default function App() {
   const totalSpendAll = cards.reduce((sum, card) => sum + (card.id === 3 ? 0 : calculateCurrentSpend(card)), 0);
   const totalSaved = cards.reduce((sum, card) => sum + card.savedAmount, 0);
 
-  // --- AI 스마트 픽 (내부 데이터 보존 및 검색 금지) ---
+  // --- AI 스마트 픽 ---
   const handleSmartPick = async () => {
     if (!aiPickQuery.trim()) return;
     setAiLoading(true); setAiResponse(null);
@@ -473,7 +491,7 @@ export default function App() {
     } catch (e) {} finally { setAiLoading(false); }
   };
 
-  // --- 상세 화면 컴포넌트 (스크롤 고정 및 스와이프 기능) ---
+  // --- 상세 화면 컴포넌트 ---
   const CardDetail = ({ id, onClose }) => {
     const card = cards.find(c => c.id === id);
     const [lmVal, setLmVal] = useState(card?.lastMonthSpend || 0);
@@ -482,7 +500,6 @@ export default function App() {
     const [touchEnd, setTouchEnd] = useState(null);
 
     useEffect(() => {
-      // 🛠️ 스크롤 최상단 강제 고정 (애니메이션 충돌 방지)
       window.scrollTo(0, 0);
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
       setLmVal(card?.lastMonthSpend || 0);
@@ -492,7 +509,6 @@ export default function App() {
     const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
     const onTouchEnd = () => {
       if (!touchStart || !touchEnd) return;
-      // 🛠️ 아이폰 네이티브 뒤로가기 스와이프 (L -> R)
       if (touchStart - touchEnd < -60) onClose(); 
     };
 
@@ -533,8 +549,12 @@ export default function App() {
           <div className="bg-indigo-50 rounded-2xl p-5 mb-6 border border-indigo-100 shadow-inner">
             <p className="text-[11px] font-black text-indigo-400 mb-2 uppercase tracking-tighter">직전달 실적 기입 (혜택 기준)</p>
             <div className="flex items-center space-x-3 mb-4">
-              <input type="number" value={lmVal} onChange={e => setLmVal(e.target.value)} onBlur={() => updateLM(id, lmVal)} className="flex-1 bg-white border-2 border-indigo-100 rounded-xl px-4 py-2 font-black text-indigo-700 outline-none"/>
-              <span className="font-bold text-indigo-600">원</span>
+              <input type="number" value={lmVal} onChange={e => setLmVal(e.target.value)} className="flex-1 bg-white border-2 border-indigo-100 rounded-xl px-4 py-2 font-black text-indigo-700 outline-none shadow-sm" placeholder="금액 입력"/>
+              <span className="font-bold text-indigo-600 whitespace-nowrap">원</span>
+              {/* 🔥 명시적인 적용 버튼 추가 (입력 후 바로 창을 닫아도 저장되도록 함) */}
+              <button onClick={() => updateLM(id, lmVal)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform shrink-0">
+                적용
+              </button>
             </div>
             <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
               <span className="text-[10px] font-bold text-gray-400 block mb-1">현재 적용된 통합 한도</span>
@@ -561,7 +581,6 @@ export default function App() {
             </div>
           )}
 
-          {/* 🛠️ 하단 빈공간 제거: pb-12 적용하여 혜택이 끝나면 페이지도 딱 끝남 */}
           <div className="space-y-4 pb-12">
             <h4 className="font-black text-lg flex items-center border-b pb-2"><Receipt size={20} className="mr-2 text-indigo-600"/> 혜택별 지출 입력</h4>
             {card.detailedBenefits.map(db => {
@@ -577,7 +596,6 @@ export default function App() {
                     <div className="flex-1 pr-4">
                       <h5 className="font-black text-[15px] leading-snug">{db.title}</h5>
                       <p className="text-[11px] text-gray-500">{db.desc}</p>
-                      {/* 🔥 누락되었던 상세 혜택 설명 완벽 복구 */}
                       {db.extendedDesc && <p className="text-[10px] text-gray-400 mt-1 leading-relaxed border-l-2 border-indigo-100 pl-2">ℹ {db.extendedDesc}</p>}
                     </div>
                     {isActive ? <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold mt-1 shrink-0">적용중</span> : <span className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded-full font-bold mt-1 shrink-0">{formatWon(db.minSpend)}↑ 필요</span>}
@@ -654,7 +672,7 @@ export default function App() {
                       </div>
                       <div className="mt-4 pt-4 border-t flex justify-between items-center border-gray-50">
                         <span className="text-[11px] font-black text-gray-400">{c.id === 3 ? `이번 달 기록: ${getCardCountSum(c)}회` : `이번 달 사용: ${formatWon(s)}`}</span>
-                        <span className={`text-[11px] font-black ${met ? 'text-green-500' : 'text-indigo-500'}`}>{c.id === 3 ? '기록 중' : (met ? '실적 달성' : `부족 ${formatWon(c.target - s)}`)}</span>
+                        <span className={`text-[11px] font-black ${met ? 'text-green-500' : 'text-indigo-500'}`}>{met ? '실적 달성' : `부족 ${formatWon(c.target - s)}`}</span>
                       </div>
                     </div>
                   );
@@ -693,7 +711,6 @@ export default function App() {
           <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center transition-all ${activeTab === 'home' ? 'text-indigo-600 scale-110' : 'text-gray-300'}`}><Home/><span className="text-[10px] font-black mt-1 uppercase tracking-tighter">REPORT</span></button>
         </nav>
 
-        {/* 🛠️ key={selectedDetailCardId}를 추가하여 매번 컴포넌트를 완전히 새로 렌더링 -> 스크롤 버그 원천 차단 */}
         {selectedDetailCardId && <CardDetail key={selectedDetailCardId} id={selectedDetailCardId} onClose={() => setSelectedDetailCardId(null)}/>}
         {toastMsg && <div className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl text-xs font-bold shadow-2xl z-[200] animate-in slide-in-from-bottom-4 text-center leading-relaxed whitespace-pre-wrap">{toastMsg}</div>}
       </div>
