@@ -347,7 +347,7 @@ export default function App() {
       if (snapshot.exists()) {
         const data = snapshot.data();
         
-        // 데이터 구조 안정성을 위해 JSON으로 직렬화된 데이터 파싱
+        // 데이터 구조 안정성을 위해 JSON으로 직렬화된 데이터 파싱 (안전장치 2)
         let parsedHistories = {};
         if (data.spendHistoriesStr) {
           try { parsedHistories = JSON.parse(data.spendHistoriesStr); } catch (e) {}
@@ -383,9 +383,9 @@ export default function App() {
     return () => unsubscribe();
   }, [user, currentMonthStr, authError]);
 
-  // 클라우드 저장 (직렬화 적용하여 데이터 유실 100% 방지)
+  // 클라우드 저장 (성공/실패 여부를 반환하도록 업그레이드)
   const saveToCloud = async (newCards) => {
-    if (authError || !user) return;
+    if (authError || !user) return false;
     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shared_monthly_data', currentMonthStr);
     const lastMonthSpends = {};
     const spendHistories = {};
@@ -396,17 +396,20 @@ export default function App() {
     try { 
       await setDoc(docRef, { 
         lastMonthSpends, 
-        spendHistoriesStr: JSON.stringify(spendHistories) // 복잡한 구조로 인한 Firebase 오류 원천 차단
+        spendHistoriesStr: JSON.stringify(spendHistories) 
       }, { merge: true }); 
+      return true; // 저장 성공
     } catch (e) {
       console.error("Save Error", e);
+      return false; // 저장 실패
     }
   };
 
   const handlePrevMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
   const handleNextMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
 
-  const addSpending = (cardId, benefitId, amount, customDate = null) => {
+  // 지출 내역 추가 시 저장 결과 피드백 추가
+  const addSpending = async (cardId, benefitId, amount, customDate = null) => {
     if (!amount || amount <= 0) return;
     const newCards = cards.map(card => {
       if (card.id === cardId) {
@@ -423,11 +426,17 @@ export default function App() {
       return card;
     });
     setCards(newCards);
-    saveToCloud(newCards);
-    if (!authError) { setToastMsg('☁️ 클라우드 저장 완료'); setTimeout(() => setToastMsg(''), 1500); }
+    const success = await saveToCloud(newCards);
+    if (success) { 
+      setToastMsg('☁️ 내역 저장 완료'); 
+    } else {
+      setToastMsg('⚠️ 저장 실패 (Firebase 콘솔에서 규칙을 확인해주세요!)');
+    }
+    setTimeout(() => setToastMsg(''), 2500);
   };
 
-  const deleteSpending = (cardId, benefitId, historyId) => {
+  // 내역 삭제
+  const deleteSpending = async (cardId, benefitId, historyId) => {
     if(!window.confirm("이 내역을 삭제하시겠습니까?")) return;
     const newCards = cards.map(card => {
       if (card.id === cardId) {
@@ -444,19 +453,23 @@ export default function App() {
       return card;
     });
     setCards(newCards);
-    saveToCloud(newCards);
-    setToastMsg('🗑️ 내역 삭제 완료');
+    const success = await saveToCloud(newCards);
+    if (success) setToastMsg('🗑️ 내역 삭제 완료');
     setTimeout(() => setToastMsg(''), 1500);
   };
 
-  // '적용' 버튼을 통해 명확하게 호출되도록 변경된 함수
-  const updateLM = (cardId, val) => {
+  // 🔥 확실한 '적용' 버튼을 위한 실적 업데이트 함수 (안전장치 1)
+  const updateLM = async (cardId, val) => {
     const newVal = parseInt(val) || 0;
     const newCards = cards.map(c => c.id === cardId ? { ...c, lastMonthSpend: newVal } : c);
     setCards(newCards);
-    saveToCloud(newCards);
-    setToastMsg('☁️ 실적 반영 완료');
-    setTimeout(() => setToastMsg(''), 1500);
+    const success = await saveToCloud(newCards);
+    if (success) {
+      setToastMsg('✅ 실적 반영 완료');
+    } else {
+      setToastMsg('⚠️ 저장 실패 (Firebase 콘솔에서 규칙을 확인해주세요!)');
+    }
+    setTimeout(() => setToastMsg(''), 2500);
   };
 
   const formatWon = (n) => new Intl.NumberFormat('ko-KR').format(n) + '원';
@@ -548,14 +561,27 @@ export default function App() {
 
           <div className="bg-indigo-50 rounded-2xl p-5 mb-6 border border-indigo-100 shadow-inner">
             <p className="text-[11px] font-black text-indigo-400 mb-2 uppercase tracking-tighter">직전달 실적 기입 (혜택 기준)</p>
-            <div className="flex items-center space-x-3 mb-4">
-              <input type="number" value={lmVal} onChange={e => setLmVal(e.target.value)} className="flex-1 bg-white border-2 border-indigo-100 rounded-xl px-4 py-2 font-black text-indigo-700 outline-none shadow-sm" placeholder="금액 입력"/>
-              <span className="font-bold text-indigo-600 whitespace-nowrap">원</span>
-              {/* 🔥 명시적인 적용 버튼 추가 (입력 후 바로 창을 닫아도 저장되도록 함) */}
-              <button onClick={() => updateLM(id, lmVal)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform shrink-0">
-                적용
-              </button>
+            
+            {/* 🔥 변경된 UI: 적용 버튼을 입력 네모칸 안으로 쏙 넣었습니다! */}
+            <div className="flex items-center mb-4">
+              <div className="relative flex-1">
+                <input 
+                  type="number" 
+                  value={lmVal} 
+                  onChange={e => setLmVal(e.target.value)} 
+                  className="w-full bg-white border-2 border-indigo-100 rounded-xl pl-4 pr-16 py-2.5 font-black text-indigo-700 outline-none shadow-sm"
+                  placeholder="금액 입력"
+                />
+                <button 
+                  onClick={() => updateLM(id, lmVal)} 
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold active:scale-95 transition-transform shadow-sm"
+                >
+                  적용
+                </button>
+              </div>
+              <span className="font-bold text-indigo-600 ml-3 whitespace-nowrap">원</span>
             </div>
+            
             <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
               <span className="text-[10px] font-bold text-gray-400 block mb-1">현재 적용된 통합 한도</span>
               <span className="text-[13px] font-black text-indigo-700 leading-tight">{getAppliedLimit()}</span>
