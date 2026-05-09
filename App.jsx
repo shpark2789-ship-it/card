@@ -166,7 +166,11 @@ const INITIAL_CARDS = [
       { id: 'dh_3', icon: <ShoppingCart />, title: '대형마트 5% 할인', desc: '이마트, 홈플러스, 롯데마트', minSpend: 200000, rate: 0.05, extendedDesc: '전월 20만 이상 시 월 5,000원 한도 (창고형 제외)' },
       { id: 'dh_4', icon: <BookOpen />, title: '전국 학원 5% 할인', desc: '입시, 보습, 외국어 학원 등', minSpend: 300000, rate: 0.05, extendedDesc: '전월 30만 이상 시 월 1만원 한도, 오프라인 결제건' },
       { id: 'dh_5', icon: <Coffee />, title: '스타벅스/외식 20% 할인', desc: '스타벅스 및 주요 패밀리레스토랑', minSpend: 300000, rate: 0.2, extendedDesc: '스타벅스 월 2회(회당 5천원), 패밀리레스토랑 20% 할인' },
-      { id: 'dh_6', icon: <Ticket />, title: '놀이공원 50% 할인', desc: '에버랜드, 롯데월드, 서울랜드', minSpend: 300000, rate: 0.5, extendedDesc: '본인 자유이용권 50% 현장할인 (통합 월 1회, 연 10회)' }
+      { id: 'dh_6', icon: <Ticket />, title: '놀이공원 50% 할인', desc: '에버랜드, 롯데월드, 서울랜드', minSpend: 300000, rate: 0.5, extendedDesc: '본인 자유이용권 50% 현장할인 (통합 월 1회, 연 10회)' },
+      { id: 'dh_7', icon: <Film />, title: '영화관 2~4천원 할인', desc: 'CGV, 롯데시네마, 메가박스', minSpend: 300000, rate: 0.1, extendedDesc: '현장 결제 시 자녀 수 차등 할인 (월 2회)' },
+      { id: 'dh_8', icon: <Droplet />, title: 'GS칼텍스 50~70원 할인', desc: '리터당 청구할인 (자녀수 차등)', minSpend: 300000, rate: 0.03, extendedDesc: '1회 10만원, 일 2회, 월 6회까지 적용' },
+      { id: 'dh_9', icon: <Smartphone />, title: '통신요금 최고 1천원 할인', desc: '자동납부 등록 시 건당 500원 할인', minSpend: 300000, rate: 0.01, extendedDesc: '자동납부 2건 이상 시 최대 1,000원 할인' },
+      { id: 'dh_10', icon: <Scissors />, title: '미용실 전 업종 10% 할인', desc: '전국 미용실 업종 청구할인', minSpend: 300000, rate: 0.1, extendedDesc: '이용대금 차감청구 방식 (통합할인 한도 내)' }
     ]
   },
   {
@@ -182,10 +186,11 @@ const INITIAL_CARDS = [
     savedAmount: 0,
     limitTable: [{"tier": "30만원 이상", "limit": "특별/추가 한도 1만점 (기본 무제한)"}, {"tier": "60만원 이상", "limit": "특별/추가 한도 2만점 (기본 무제한)"}, {"tier": "120만원 이상", "limit": "특별/추가 한도 5만점 (기본 무제한)"}],
     detailedBenefits: [
-      { id: 'wow_1', icon: <Bus />, title: '이동통신/대중교통 5% 적립', desc: '통신사 자동이체 및 버스/지하철', minSpend: 300000, rate: 0.05, extendedDesc: '전기차 충전 포함, 결합상품 제외' },
-      { id: 'wow_2', icon: <Smartphone />, title: '주요 간편결제 3% 추가 적립', desc: '네이버/카카오/PAYCO/SSGPAY', minSpend: 300000, rate: 0.03, extendedDesc: '온/오프라인 모두 적용, 기본/특별 적립과 중복 적용' },
-      { id: 'wow_3', icon: <Film />, title: '커피/영화 3% 적립', desc: '스타벅스, 투썸, CGV, 롯데시네마', minSpend: 300000, rate: 0.03, extendedDesc: '백화점/대형마트 입점 매장 제외' },
-      { id: 'wow_4', icon: <ShoppingCart />, title: '백화점/마트/온라인 1% 적립', desc: '이마트, 쿠팡, G마켓, 백화점 등', minSpend: 300000, rate: 0.01, extendedDesc: '면세점, 해외 가맹점 포함' }
+      { id: 'wow_1', icon: <Globe />, title: '국내 전 가맹점 0.8% 적립', desc: '특별적립 가맹점 외 모든 국내 결제', minSpend: 300000, rate: 0.008, extendedDesc: '기본 적립은 한도 제한 없이 무제한 적립' },
+      { id: 'wow_2', icon: <Bus />, title: '통신/교통/전기차 5% 적립', desc: '이동통신, 대중교통, 전기차 충전', minSpend: 300000, rate: 0.05, extendedDesc: 'SKT, KT, LGU+, 알뜰폰 자동이체 / 버스, 지하철 / 전기차 급속충전' },
+      { id: 'wow_3', icon: <Smartphone />, title: '주요 간편결제 3% 추가 적립', desc: '네이버/카카오/PAYCO/SSGPAY', minSpend: 300000, rate: 0.03, extendedDesc: '온/오프라인 모두 적용, 기본/특별 적립과 중복 적용' },
+      { id: 'wow_4', icon: <Film />, title: '커피/영화 3% 적립', desc: '스타벅스, 엔제리너스, 이디야 / CGV, 롯데시네마', minSpend: 300000, rate: 0.03, extendedDesc: '커피는 백화점/마트 입점 매장 제외, 영화는 예매 대행사이트 제외' },
+      { id: 'wow_5', icon: <ShoppingCart />, title: '쇼핑/주유/면세/해외 1% 적립', desc: '백화점, 대형할인점, 온라인쇼핑, 주유 등', minSpend: 300000, rate: 0.01, extendedDesc: '신세계/현대/롯데백화점, 이마트/홈플/롯데마트, 11번가/G마켓/쿠팡 등, SK/GS/현대/S-OIL 주유소' }
     ]
   },
   {
@@ -315,7 +320,7 @@ export default function App() {
   const currentMonthStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}`;
   const displayMonthStr = `${String(selectedDate.getFullYear()).slice(2)}년 ${selectedDate.getMonth() + 1}월`;
 
-  // --- 화면 확대(Pinch Zoom) 방지 강제 적용 ---
+  // --- 화면 확대(Pinch Zoom) 방지 및 자동 아이콘 생성 로직 ---
   useEffect(() => {
     let metaViewport = document.querySelector('meta[name="viewport"]');
     if (!metaViewport) {
@@ -324,6 +329,36 @@ export default function App() {
       document.head.appendChild(metaViewport);
     }
     metaViewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no";
+
+    const preventPinchZoom = (e) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('touchstart', preventPinchZoom, { passive: false });
+
+    // ✨ 예쁜 카드 모양 앱 아이콘 자동 주입
+    const cardIconBase64 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNDEyIiBoZWlnaHQ9IjI4MCIgeD0iNTAiIHk9IjExNiIgZmlsbD0iIzRmNDZlNSIgcng9IjQwIiByeT0iNDAiLz4KICA8cGF0aCBmaWxsPSIjODE4Y2Y4IiBkPSJNNTAgMjAwaDQxMnY0MEg1MHoiLz4KICA8cmVjdCB3aWR0aD0iODAiIGhlaWdodD0iNTAiIHg9IjEwMCIgeT0iMjcwIiBmaWxsPSIjZmFjYzE1IiByeD0iMTAiIHJ5PSIxMCIvPgogIDxjaXJjbGUgY3g9IjM4MCIgY3k9IjMwMCIgcj0iMzAiIGZpbGw9IiNmODcxNzEiLz4KICA8Y2lyY2xlIGN4PSIzNDAiIGN5PSIzMDAiIHI9IjMwIiBmaWxsPSIjZmNhNWE1IiBvcGFjaXR5PSIwLjgiLz4KICA8dGV4dCB4PSIyMTAiIHk9IjMwNSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiNmZmZmZmYiIGZvbnQtd2VpZ2h0PSJib2xkIj5TTUFSVCBDQVJEPC90ZXh0Pgo8L3N2Zz4=";
+    
+    let appleIcon = document.querySelector("link[rel='apple-touch-icon']");
+    if (!appleIcon) {
+      appleIcon = document.createElement("link");
+      appleIcon.rel = "apple-touch-icon";
+      document.head.appendChild(appleIcon);
+    }
+    appleIcon.href = cardIconBase64;
+
+    let favIcon = document.querySelector("link[rel='icon']");
+    if (!favIcon) {
+      favIcon = document.createElement("link");
+      favIcon.rel = "icon";
+      document.head.appendChild(favIcon);
+    }
+    favIcon.href = cardIconBase64;
+
+    return () => {
+      document.removeEventListener('touchstart', preventPinchZoom);
+    };
   }, []);
 
   // 1. Firebase 인증
@@ -350,7 +385,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. 실시간 데이터 동기화 (가족 공유 Public DB 경로 고정 및 이번달 실적 추가)
+  // 2. 실시간 데이터 동기화
   useEffect(() => {
     if (!user || authError) { setIsSyncing(false); return; }
     setIsSyncing(true);
@@ -438,6 +473,7 @@ export default function App() {
   const handlePrevMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
   const handleNextMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
 
+  // 일반 카드 지출 내역 누적 함수
   const addSpending = async (cardId, benefitId, amount, customDate = null) => {
     if (!amount || amount <= 0) return;
     const newCards = cards.map(card => {
@@ -458,6 +494,40 @@ export default function App() {
     const success = await saveToCloud(newCards);
     if (success) { setToastMsg('☁️ 내역 저장 완료'); } 
     else { setToastMsg('⚠️ 저장 실패 (Firebase 콘솔 확인 필요)'); }
+    setTimeout(() => setToastMsg(''), 2500);
+  };
+
+  // 🔥 카카오뱅크 신한카드 전용: 내역을 누적하지 않고 단일 횟수로 덮어쓰기 하는 함수
+  const overwriteSpending = async (cardId, benefitId, amount) => {
+    if (!amount || parseInt(amount) < 0) return;
+    const newCards = cards.map(card => {
+      if (card.id === cardId) {
+        const dateStr = new Date().toLocaleDateString();
+        // 덮어쓰기이므로 배열에 아이템 1개만 넣음
+        const newHist = [{ id: Date.now(), amount: parseInt(amount), date: dateStr }];
+        const newBenefitSpending = { ...card.benefitSpending, [benefitId]: newHist };
+        
+        let newSavedAmount = 0;
+        if (newBenefitSpending) {
+          Object.entries(newBenefitSpending).forEach(([b_id, histories]) => {
+            const targetBenefit = card.detailedBenefits.find(b => b.id === b_id);
+            const rate = targetBenefit?.rate || 0;
+            const sum = histories.reduce((s, h) => s + h.amount, 0);
+            newSavedAmount += sum * rate;
+          });
+        }
+        return {
+          ...card,
+          benefitSpending: newBenefitSpending,
+          savedAmount: newSavedAmount
+        };
+      }
+      return card;
+    });
+    setCards(newCards);
+    const success = await saveToCloud(newCards);
+    if (success) { setToastMsg('☁️ 최종 횟수 덮어쓰기 완료'); } 
+    else { setToastMsg('⚠️ 저장 실패'); }
     setTimeout(() => setToastMsg(''), 2500);
   };
 
@@ -493,7 +563,6 @@ export default function App() {
     setTimeout(() => setToastMsg(''), 2500);
   };
 
-  // 🔥 새로 추가된 이번 달 실적 독립 기입 함수 (자동 이월 기능 추가)
   const updateCM = async (cardId, val) => {
     const newVal = parseInt(val) || 0;
     const now = new Date();
@@ -503,16 +572,12 @@ export default function App() {
     setCards(newCards);
     const success = await saveToCloud(newCards);
 
-    // 🔥 핵심: 다음 달 문서의 '직전달 실적(lastMonthSpends)'에 자동으로 덮어쓰기 (자동 이월)
     if (success && !authError && user) {
       const nextMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
       const nextMonthStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
       const nextDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'shared_monthly_data', nextMonthStr);
-      
       try {
-        await setDoc(nextDocRef, { 
-          lastMonthSpends: { [String(cardId)]: newVal } 
-        }, { merge: true });
+        await setDoc(nextDocRef, { lastMonthSpends: { [String(cardId)]: newVal } }, { merge: true });
       } catch (e) {
         console.error("자동 이월 오류:", e);
       }
@@ -527,11 +592,9 @@ export default function App() {
   const calculateCurrentSpend = (card) => Object.values(card.benefitSpending).flat().reduce((s, i) => s + i.amount, 0);
   const getCardCountSum = (card) => Object.values(card.benefitSpending).flat().reduce((s, i) => s + i.amount, 0);
   
-  // 리포트용 총 지출 계산 (혜택 지출 합계로 유지)
   const totalSpendAll = cards.reduce((sum, card) => sum + (card.id === 3 ? 0 : calculateCurrentSpend(card)), 0);
   const totalSaved = cards.reduce((sum, card) => sum + card.savedAmount, 0);
 
-  // --- 자체 스마트 픽 ---
   const handleSmartPick = () => {
     if (!aiPickQuery.trim()) return;
     setAiLoading(true);
@@ -546,7 +609,6 @@ export default function App() {
         let matchedBenefits = [];
         card.detailedBenefits.forEach(b => {
           const textToSearch = `${b.title} ${b.desc} ${b.extendedDesc || ''}`.toLowerCase();
-          
           const isMatch = searchTerms.some(term => 
             textToSearch.includes(term) ||
             (term === '커피' && textToSearch.includes('카페')) ||
@@ -555,13 +617,9 @@ export default function App() {
             ((term === '택시' || term === '지하철' || term === '버스') && textToSearch.includes('교통')) ||
             (term === '기름' && textToSearch.includes('주유'))
           );
-
           if (isMatch) matchedBenefits.push(b);
         });
-
-        if (matchedBenefits.length > 0) {
-          results.push({ card, matchedBenefits });
-        }
+        if (matchedBenefits.length > 0) results.push({ card, matchedBenefits });
       });
 
       if (results.length > 0) {
@@ -581,7 +639,6 @@ export default function App() {
     }, 400); 
   };
 
-  // --- 자체 소비 분석 리포트 ---
   const handleAnalysis = () => {
     setAiLoading(true);
     setAiAnalysisReport(null);
@@ -605,7 +662,8 @@ export default function App() {
       const sortedBySpend = [...cards].sort((a,b) => (b.currentMonthSpend || 0) - (a.currentMonthSpend || 0));
       const topCard = sortedBySpend[0];
       if ((topCard.currentMonthSpend || 0) > 0) {
-        tips.push(`📊 [주요 지출]\n이번 달은 ${topCard.name.split('(')[0].trim()} 카드로 가장 많은 실적(${formatWon(topCard.currentMonthSpend || 0)})을 쌓았습니다.`);
+        const spendStr = topCard.id === 3 ? `${topCard.currentMonthSpend || 0}회` : formatWon(topCard.currentMonthSpend || 0);
+        tips.push(`📊 [주요 지출]\n이번 달은 ${topCard.name.split('(')[0].trim()} 카드로 가장 많은 실적(${spendStr})을 쌓았습니다.`);
       }
 
       tips.push(`💡 [스마트 소비 팁]\n자투리 지출은 '국민 톡톡 my point'처럼 실적 조건이 없는 카드를 활용하면 포인트 혜택을 알뜰하게 챙길 수 있습니다.`);
@@ -620,7 +678,6 @@ export default function App() {
     }, 600);
   };
 
-  // --- 상세 화면 컴포넌트 ---
   const CardDetail = ({ id, onClose }) => {
     const card = cards.find(c => c.id === id);
     const [lmVal, setLmVal] = useState(card?.lastMonthSpend || 0);
@@ -674,7 +731,8 @@ export default function App() {
             <div className="flex justify-between items-end">
               <div>
                 <p className="text-[10px] font-black opacity-70">이번 달 수동 실적</p>
-                <p className="text-2xl font-black">{formatWon(card.currentMonthSpend || 0)}</p>
+                {/* 🔥 카카오뱅크 신한카드일 경우 '원' 대신 '회'로 표시 */}
+                <p className="text-2xl font-black">{card.id === 3 ? `${card.currentMonthSpend || 0}회` : formatWon(card.currentMonthSpend || 0)}</p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-black opacity-70">누적 혜택 계산</p>
@@ -692,7 +750,7 @@ export default function App() {
                   value={lmVal} 
                   onChange={e => setLmVal(e.target.value)} 
                   className="w-full bg-white border-2 border-indigo-100 rounded-xl pl-4 pr-16 py-2.5 font-black text-indigo-700 outline-none shadow-sm"
-                  placeholder="직전달 총액"
+                  placeholder={card.id === 3 ? "직전달 결제 횟수" : "직전달 총액"}
                 />
                 <button 
                   onClick={() => updateLM(id, lmVal)} 
@@ -701,7 +759,8 @@ export default function App() {
                   적용
                 </button>
               </div>
-              <span className="font-bold text-indigo-600 ml-3 whitespace-nowrap">원</span>
+              {/* 🔥 단위 변경 */}
+              <span className="font-bold text-indigo-600 ml-3 whitespace-nowrap">{card.id === 3 ? '회' : '원'}</span>
             </div>
             
             <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
@@ -729,7 +788,6 @@ export default function App() {
             </div>
           )}
 
-          {/* 🔥 새로 추가된 이번 달 실적 독립 기입란 */}
           <div className="bg-indigo-50 rounded-2xl p-5 mb-6 border border-indigo-100 shadow-inner">
             <div className="flex justify-between items-center mb-2">
               <p className="text-[11px] font-black text-indigo-400 uppercase tracking-tighter">이번 달 실적 기입 (목표 달성용)</p>
@@ -746,7 +804,7 @@ export default function App() {
                   value={cmVal} 
                   onChange={e => setCmVal(e.target.value)} 
                   className="w-full bg-white border-2 border-indigo-100 rounded-xl pl-4 pr-16 py-2.5 font-black text-indigo-700 outline-none shadow-sm"
-                  placeholder="현재 실적 기입"
+                  placeholder={card.id === 3 ? "현재 결제 횟수 기입" : "현재 실적 기입"}
                 />
                 <button 
                   onClick={() => updateCM(id, cmVal)} 
@@ -755,18 +813,18 @@ export default function App() {
                   적용
                 </button>
               </div>
-              <span className="font-bold text-indigo-600 ml-3 whitespace-nowrap">원</span>
+              {/* 🔥 단위 변경 */}
+              <span className="font-bold text-indigo-600 ml-3 whitespace-nowrap">{card.id === 3 ? '회' : '원'}</span>
             </div>
             
-            {/* 달성 여부 UI */}
             <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm flex items-center justify-between">
               <span className="text-[10px] font-bold text-gray-500 block mb-1">
-                다음달 혜택 목표: {card.target > 0 ? formatWon(card.target) : '무실적'}
+                다음달 혜택 목표: {card.target > 0 ? (card.id === 3 ? `${card.target}회` : formatWon(card.target)) : '무실적'}
               </span>
               {card.target === 0 || (card.currentMonthSpend || 0) >= card.target ? (
                 <span className="text-[12px] font-black text-green-500 bg-green-50 border border-green-100 px-2 py-1 rounded">✅ 달성 완료</span>
               ) : (
-                <span className="text-[12px] font-black text-red-500 bg-red-50 border border-red-100 px-2 py-1 rounded">❌ 미달성 ({formatWon(card.target - (card.currentMonthSpend || 0))} 부족)</span>
+                <span className="text-[12px] font-black text-red-500 bg-red-50 border border-red-100 px-2 py-1 rounded">❌ 미달성 ({card.id === 3 ? `${card.target - (card.currentMonthSpend || 0)}회` : formatWon(card.target - (card.currentMonthSpend || 0))} 부족)</span>
               )}
             </div>
           </div>
@@ -776,7 +834,6 @@ export default function App() {
             {card.detailedBenefits.map(db => {
               const isActive = card.lastMonthSpend >= db.minSpend;
               const [amt, setAmt] = useState('');
-              const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
               const hist = card.benefitSpending[db.id] || [];
               const sum = hist.reduce((s, h) => s + h.amount, 0);
 
@@ -793,24 +850,38 @@ export default function App() {
                   {isActive && (
                     <div className="mt-3 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-inner">
                       <div className="flex justify-between mb-3 items-center">
-                        <span className="text-[10px] font-black text-gray-400">{card.id === 3 ? `합계: ${sum}회` : `합계: ${formatWon(sum)}`}</span>
+                        <span className="text-[10px] font-black text-gray-400">
+                          {/* 🔥 카카오뱅크 신한카드면 '적용된 횟수: X회', 아니면 원화 표기 */}
+                          {card.id === 3 ? `적용된 횟수: ${sum}회` : `합계: ${formatWon(sum)}`}
+                        </span>
                         {card.id !== 3 && <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">예상 혜택: {formatWon(sum * db.rate)}</span>}
                       </div>
-                      {hist.length > 0 && (
+                      
+                      {/* 🔥 카카오뱅크 신한카드(ID: 3)일 경우, 과거 리스트 숨김 처리 (오직 최종 횟수만 덮어쓰기) */}
+                      {hist.length > 0 && card.id !== 3 && (
                         <div className="mb-4 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
                           {hist.map(h => (
                             <div key={h.id} className="flex justify-between items-center text-xs bg-white border border-gray-200 p-2 rounded-xl">
                               <span className="text-gray-400 text-[10px]">{h.date}</span>
-                              <div className="flex items-center space-x-3"><span className="font-black text-gray-700">{card.id === 3 ? `${h.amount}회` : formatWon(h.amount)}</span><button onClick={() => deleteSpending(id, db.id, h.id)} className="text-gray-300 hover:text-red-500"><Trash2 size={16}/></button></div>
+                              <div className="flex items-center space-x-3"><span className="font-black text-gray-700">{formatWon(h.amount)}</span><button onClick={() => deleteSpending(id, db.id, h.id)} className="text-gray-300 hover:text-red-500"><Trash2 size={16}/></button></div>
                             </div>
                           ))}
                         </div>
                       )}
+                      
                       <div className="flex space-x-2">
+                        {/* 🔥 카카오뱅크 신한카드(ID:3) 전용 '덮어쓰기' UI */}
                         {card.id === 3 ? (
-                          <><input type="date" value={customDate} onChange={e => setCustomDate(e.target.value)} className="w-1/2 px-3 py-2 rounded-xl text-xs border-none bg-white font-bold outline-none"/><input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="횟수" className="w-1/2 px-3 py-2 rounded-xl text-xs border-none bg-white font-bold outline-none"/></>
-                        ) : (<input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="금액 추가" className="flex-1 px-4 py-2 rounded-xl text-xs border-none bg-white font-bold outline-none"/>)}
-                        <button onClick={() => { addSpending(id, db.id, amt, card.id === 3 ? customDate : null); setAmt(''); }} className="bg-indigo-600 text-white p-2 rounded-xl active:scale-90"><Plus/></button>
+                          <>
+                            <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="최종 결제 횟수 덮어쓰기" className="flex-1 px-4 py-2 rounded-xl text-xs border-none bg-white font-bold outline-none"/>
+                            <button onClick={() => { overwriteSpending(id, db.id, amt); setAmt(''); }} className="bg-indigo-600 text-white px-4 py-2 rounded-xl active:scale-90 font-bold text-xs shrink-0">덮어쓰기</button>
+                          </>
+                        ) : (
+                          <>
+                            <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="지출 금액 추가" className="flex-1 px-4 py-2 rounded-xl text-xs border-none bg-white font-bold outline-none"/>
+                            <button onClick={() => { addSpending(id, db.id, amt); setAmt(''); }} className="bg-indigo-600 text-white p-2 rounded-xl active:scale-90"><Plus/></button>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -831,9 +902,6 @@ export default function App() {
         {authError && <div className="bg-red-50 text-red-600 text-[11px] font-bold px-4 py-2 text-center flex justify-center items-center relative z-30"><AlertTriangle size={14} className="mr-1"/> Firebase 설정 전이라 데이터가 클라우드에 저장되지 않습니다.</div>}
         <header className="px-6 pt-12 pb-4 bg-white border-b flex justify-between items-center z-20">
           <h1 className="text-xl font-black tracking-tight">Smart<span className="text-indigo-600">Card</span></h1>
-          <div className="flex items-center space-x-3">
-            {/* Removed the family sharing badge */}
-          </div>
         </header>
 
         <div className="bg-gray-50 px-6 py-3 border-b flex justify-between items-center z-10 sticky top-[73px]">
@@ -848,7 +916,6 @@ export default function App() {
               <div className="flex justify-between items-end"><h2 className="text-2xl font-black">내 카드 지갑</h2><span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest font-bold">Manage</span></div>
               <div className="space-y-4">
                 {cards.map(c => {
-                  // 메인 지갑 리스트의 실적 달성 여부를 수동 기입한 이번 달 실적 기준으로 변경!
                   const manualSpend = c.currentMonthSpend || 0;
                   const met = c.target === 0 || manualSpend >= c.target;
                   return (
@@ -860,7 +927,8 @@ export default function App() {
                       </div>
                       <div className="mt-4 pt-4 border-t flex justify-between items-center border-gray-50">
                         <span className="text-[11px] font-black text-gray-400">
-                          {c.id === 3 ? `결제 횟수: ${getCardCountSum(c)}회` : `이번 달 실적: ${formatWon(manualSpend)}`}
+                          {/* 🔥 메인 지갑 카드 리스트의 단위 표기 변경 */}
+                          {c.id === 3 ? `이번 달 결제: ${manualSpend}회` : `이번 달 실적: ${formatWon(manualSpend)}`}
                         </span>
                         <span className={`text-[11px] font-black ${met ? 'text-green-500' : 'text-red-500'}`}>
                           {c.id === 3 && met ? '달성 완료' : (met ? '달성 완료' : `미달성 (${formatWon(c.target - manualSpend)} 부족)`)}
@@ -913,6 +981,7 @@ export default function App() {
         body { 
           -webkit-tap-highlight-color: transparent; 
           touch-action: pan-x pan-y; /* 핀치 줌 방지용 CSS */
+          overscroll-behavior: none;
         }
         input:focus { outline: none; }
         .markdown-body ul { list-style-type: disc; padding-left: 20px; margin-top: 10px; }
