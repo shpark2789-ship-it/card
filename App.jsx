@@ -29,6 +29,34 @@ googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-card-manager-v1';
 
+// --- Gemini API Setup ---
+const apiKey = ""; 
+
+const fetchGemini = async (prompt, systemInstruction) => {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    systemInstruction: { parts: [{ text: systemInstruction }] }
+  };
+  let delay = 1000;
+  for (let i = 0; i < 5; i++) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+      const result = await response.json();
+      return result.candidates?.[0]?.content?.parts?.[0]?.text;
+    } catch (error) {
+      if (i === 4) throw error;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
+  }
+};
+
 // --- 카드 데이터 세트 (12종 - 데이터 유실 0% 완벽 복구 버전) ---
 const INITIAL_CARDS = [
   {
@@ -287,7 +315,19 @@ export default function App() {
   const currentMonthStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}`;
   const displayMonthStr = `${String(selectedDate.getFullYear()).slice(2)}년 ${selectedDate.getMonth() + 1}월`;
 
-  // 1. Firebase 인증
+  // --- 화면 확대(Pinch Zoom) 방지 강제 적용 ---
+  useEffect(() => {
+    let metaViewport = document.querySelector('meta[name="viewport"]');
+    if (!metaViewport) {
+      metaViewport = document.createElement('meta');
+      metaViewport.name = "viewport";
+      document.head.appendChild(metaViewport);
+    }
+    // 최대 배율을 1.0으로 고정하고, 사용자 스케일 조작(user-scalable)을 차단합니다.
+    metaViewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no";
+  }, []);
+
+  // 1. Firebase 인증 (익명 로그인만 사용 - 구글 로그인 완전 제거)
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -311,7 +351,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. 실시간 데이터 동기화
+  // 2. 실시간 데이터 동기화 (가족 공유 Public DB 경로 고정)
   useEffect(() => {
     if (!user || authError) { setIsSyncing(false); return; }
     setIsSyncing(true);
@@ -447,7 +487,6 @@ export default function App() {
     setAiLoading(true);
     setAiResponse(null);
 
-    // Vercel 환경의 딜레이/오류를 완벽 방지하기 위해 로컬 데이터 직접 검색 수행
     setTimeout(() => {
       const query = aiPickQuery.toLowerCase();
       const searchTerms = query.split(' ').filter(q => q.trim() !== '');
@@ -458,7 +497,6 @@ export default function App() {
         card.detailedBenefits.forEach(b => {
           const textToSearch = `${b.title} ${b.desc} ${b.extendedDesc || ''}`.toLowerCase();
           
-          // 유의어 및 키워드 기반 스마트 매칭
           const isMatch = searchTerms.some(term => 
             textToSearch.includes(term) ||
             (term === '커피' && textToSearch.includes('카페')) ||
@@ -490,7 +528,7 @@ export default function App() {
         setAiResponse(`😥 [${aiPickQuery}]에 해당하는 혜택을 찾지 못했어요.\n(예: 커피, 주유, 마트, 통신 등 다른 단어로 검색해보세요)`);
       }
       setAiLoading(false);
-    }, 400); // 사용자 경험을 위한 살짝의 대기 시간
+    }, 400); 
   };
 
   // --- 🔥 AI 분석 기능을 완벽하게 대체하는 내부 분석 엔진 ---
@@ -508,7 +546,6 @@ export default function App() {
 
       let tips = [];
       
-      // 1. 실적 달성 현황 체크
       const cardsNeedingSpend = cards.filter(c => c.target > 0 && calculateCurrentSpend(c) < c.target);
       if (cardsNeedingSpend.length > 0) {
         tips.push(`📌 [실적 달성 필요]\n${cardsNeedingSpend.map(c => c.name.split('(')[0].trim()).join(', ')} 카드의 실적이 아직 부족합니다. 혜택을 위해 우선 사용을 고려하세요.`);
@@ -516,14 +553,12 @@ export default function App() {
         tips.push(`✅ [실적 달성 완료]\n주요 카드의 실적을 모두 채우셨네요! 이제 피킹률(혜택률)이 높은 카드를 골라서 사용하세요.`);
       }
 
-      // 2. 최고 지출 카드 체크
       const sortedBySpend = [...cards].sort((a,b) => calculateCurrentSpend(b) - calculateCurrentSpend(a));
       const topCard = sortedBySpend[0];
       if (calculateCurrentSpend(topCard) > 0) {
         tips.push(`📊 [주요 지출]\n이번 달은 ${topCard.name.split('(')[0].trim()}에서 가장 많은 지출(${formatWon(calculateCurrentSpend(topCard))})이 발생했습니다.`);
       }
 
-      // 3. 고정 소비 팁
       tips.push(`💡 [스마트 소비 팁]\n자투리 지출은 '국민 톡톡 my point'처럼 실적 조건이 없는 카드를 활용하면 포인트 혜택을 알뜰하게 챙길 수 있습니다.`);
 
       let report = `✨ 이번 달 소비 리포트\n\n`;
@@ -739,4 +774,50 @@ export default function App() {
           {activeTab === 'smartPick' && (
             <div className="space-y-6 pt-4 animate-in fade-in duration-300">
               <h2 className="text-2xl font-black tracking-tight">✨ 자체 스마트 픽</h2>
-              <p className="text-xs text-gray-400 font-medium">인
+              <p className="text-xs text-gray-400 font-medium">인터넷 연결 지연 없이 앱 내부 데이터에서 즉시 혜택을 찾아줍니다.</p>
+              <div className="bg-indigo-50 rounded-3xl p-5 border border-indigo-100 shadow-inner flex items-center space-x-2">
+                <input type="text" value={aiPickQuery} onChange={e => setAiPickQuery(e.target.value)} placeholder="예: 커피, 주유, 마트, 점심" className="flex-1 px-4 py-2 text-sm border-none bg-white rounded-xl outline-none" onKeyPress={e => e.key === 'Enter' && handleSmartPick()}/>
+                <button onClick={handleSmartPick} disabled={aiLoading} className="bg-indigo-600 text-white p-2 rounded-xl active:scale-90">{aiLoading ? <Loader2 className="animate-spin" size={20}/> : <Send size={20}/>}</button>
+              </div>
+              {aiResponse && <div className="bg-white border border-indigo-100 rounded-3xl p-6 shadow-lg animate-in zoom-in duration-300 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-medium">{aiResponse}</div>}
+            </div>
+          )}
+          {activeTab === 'home' && (
+            <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-right duration-300">
+              <div className="bg-indigo-600 rounded-[40px] p-8 text-white shadow-xl">
+                <p className="text-[10px] font-black uppercase opacity-70 mb-2 tracking-widest">{displayMonthStr} Report</p>
+                <h3 className="text-4xl font-black mb-6 tracking-tight mt-1">{formatWon(totalSpendAll)}</h3>
+                <div className="flex items-center bg-white/20 w-fit px-4 py-2 rounded-2xl border border-white/20"><TrendingUp size={18} className="mr-2"/><span className="text-sm font-black">누적 혜택: {formatWon(totalSaved)}</span></div>
+              </div>
+              <div className="bg-white border rounded-3xl p-6 shadow-sm">
+                <div className="flex justify-between items-center mb-6"><h3 className="font-black flex items-center text-gray-800">✨ 소비 습관 분석</h3><button onClick={handleAnalysis} disabled={aiLoading} className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-bold text-xs flex items-center">{aiLoading ? <Loader2 className="animate-spin mr-1" size={14}/> : <RefreshCw className="mr-1" size={14}/>}리포트 생성</button></div>
+                {analysisReport && <div className="text-sm text-gray-700 leading-relaxed font-medium bg-gray-50 p-5 rounded-2xl whitespace-pre-wrap">{analysisReport}</div>}
+              </div>
+            </div>
+          )}
+        </main>
+
+        <nav className="fixed bottom-0 max-w-md w-full bg-white/95 backdrop-blur-lg border-t px-10 py-4 flex justify-between items-center pb-safe z-30 shadow-2xl">
+          <button onClick={() => setActiveTab('cards')} className={`flex flex-col items-center transition-all ${activeTab === 'cards' ? 'text-indigo-600 scale-110' : 'text-gray-300'}`}><CreditCard/><span className="text-[10px] font-black mt-1 uppercase tracking-tighter">WALLET</span></button>
+          <button onClick={() => setActiveTab('smartPick')} className="flex flex-col items-center -mt-10 group"><div className={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-2xl transition-all duration-300 group-active:scale-90 ${activeTab === 'smartPick' ? 'bg-indigo-700' : 'bg-indigo-600'}`}><Sparkles size={28}/></div><span className={`text-[10px] font-black mt-1 uppercase tracking-tighter ${activeTab === 'smartPick' ? 'text-indigo-700' : 'text-indigo-600'}`}>SMART</span></button>
+          <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center transition-all ${activeTab === 'home' ? 'text-indigo-600 scale-110' : 'text-gray-300'}`}><Home/><span className="text-[10px] font-black mt-1 uppercase tracking-tighter">REPORT</span></button>
+        </nav>
+
+        {selectedDetailCardId && <CardDetail key={selectedDetailCardId} id={selectedDetailCardId} onClose={() => setSelectedDetailCardId(null)}/>}
+        {toastMsg && <div className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl text-xs font-bold shadow-2xl z-[200] animate-in slide-in-from-bottom-4 text-center leading-relaxed whitespace-pre-wrap">{toastMsg}</div>}
+      </div>
+      <style>{`
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .custom-scrollbar::-webkit-scrollbar { width: 0px; background: transparent; }
+        body { 
+          -webkit-tap-highlight-color: transparent; 
+          touch-action: pan-x pan-y; /* 핀치 줌 방지용 CSS */
+        }
+        input:focus { outline: none; }
+        .markdown-body ul { list-style-type: disc; padding-left: 20px; margin-top: 10px; }
+        .markdown-body b { font-weight: 800; }
+        .markdown-body p { margin-bottom: 10px; }
+      `}</style>
+    </div>
+  );
+}
