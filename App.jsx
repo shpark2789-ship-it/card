@@ -493,7 +493,7 @@ export default function App() {
     setTimeout(() => setToastMsg(''), 2500);
   };
 
-  // 🔥 새로 추가된 이번 달 실적 독립 기입 함수
+  // 🔥 새로 추가된 이번 달 실적 독립 기입 함수 (자동 이월 기능 추가)
   const updateCM = async (cardId, val) => {
     const newVal = parseInt(val) || 0;
     const now = new Date();
@@ -502,9 +502,25 @@ export default function App() {
     const newCards = cards.map(c => c.id === cardId ? { ...c, currentMonthSpend: newVal, currentMonthSpendDate: dateStr } : c);
     setCards(newCards);
     const success = await saveToCloud(newCards);
-    if (success) { setToastMsg('✅ 이번 달 실적 반영 완료'); } 
+
+    // 🔥 핵심: 다음 달 문서의 '직전달 실적(lastMonthSpends)'에 자동으로 덮어쓰기 (자동 이월)
+    if (success && !authError && user) {
+      const nextMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
+      const nextMonthStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
+      const nextDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'shared_monthly_data', nextMonthStr);
+      
+      try {
+        await setDoc(nextDocRef, { 
+          lastMonthSpends: { [String(cardId)]: newVal } 
+        }, { merge: true });
+      } catch (e) {
+        console.error("자동 이월 오류:", e);
+      }
+    }
+
+    if (success) { setToastMsg('✅ 이번 달 실적 반영 완료\n(다음 달 직전달 실적으로 자동 이월됩니다)'); } 
     else { setToastMsg('⚠️ 저장 실패'); }
-    setTimeout(() => setToastMsg(''), 2500);
+    setTimeout(() => setToastMsg(''), 3000);
   };
 
   const formatWon = (n) => new Intl.NumberFormat('ko-KR').format(n) + '원';
