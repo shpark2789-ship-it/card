@@ -868,6 +868,7 @@ export default function App() {
             {card.detailedBenefits.map(db => {
               const isActive = card.lastMonthSpend >= db.minSpend;
               const [amt, setAmt] = useState('');
+              const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
               const hist = card.benefitSpending[db.id] || [];
               const sum = hist.reduce((s, h) => s + h.amount, 0);
 
@@ -883,13 +884,15 @@ export default function App() {
                   </div>
                   {isActive && (
                     <div className="mt-3 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-inner">
-                      <div className="flex justify-between mb-3 items-center">
-                        <span className="text-[10px] font-black text-gray-400">
-                          {/* 🔥 카카오뱅크 신한카드면 '적용된 횟수: X회', 아니면 원화 표기 */}
-                          {card.id === 3 ? `적용된 횟수: ${sum}회` : `합계: ${formatWon(sum)}`}
-                        </span>
-                        {card.id !== 3 && <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">예상 혜택: {formatWon(sum * db.rate)}</span>}
-                      </div>
+                      {/* 🔥 카카오뱅크 신한카드(ID: 3)일 경우에는 합계/예상혜택 줄을 완전히 숨김 처리하여 헷갈리지 않게 개선 */}
+                      {card.id !== 3 && (
+                        <div className="flex justify-between mb-3 items-center">
+                          <span className="text-[10px] font-black text-gray-400">
+                            합계: {formatWon(sum)}
+                          </span>
+                          <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">예상 혜택: {formatWon(sum * db.rate)}</span>
+                        </div>
+                      )}
                       
                       {/* 🔥 카카오뱅크 신한카드(ID: 3)일 경우, 과거 리스트 숨김 처리 (오직 최종 횟수만 덮어쓰기) */}
                       {hist.length > 0 && card.id !== 3 && (
