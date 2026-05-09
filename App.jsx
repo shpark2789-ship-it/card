@@ -516,11 +516,22 @@ export default function App() {
             newSavedAmount += sum * rate;
           });
         }
-        return {
+
+        let updatedCard = {
           ...card,
           benefitSpending: newBenefitSpending,
           savedAmount: newSavedAmount
         };
+
+        // 🔥 카카오뱅크 신한카드(ID: 3)의 메인 혜택(kb_k1)을 덮어쓰기할 때, 
+        // 상단 '이번 달 수동 실적'과 메인 화면의 '결제 횟수'도 자동 동기화!
+        if (card.id === 3 && benefitId === 'kb_k1') {
+          const now = new Date();
+          updatedCard.currentMonthSpend = parseInt(amount);
+          updatedCard.currentMonthSpendDate = `${now.getMonth() + 1}월 ${now.getDate()}일 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        }
+
+        return updatedCard;
       }
       return card;
     });
@@ -563,15 +574,38 @@ export default function App() {
     setTimeout(() => setToastMsg(''), 2500);
   };
 
+  // 🔥 이번 달 실적 독립 기입 함수 (자동 이월 기능 유지)
   const updateCM = async (cardId, val) => {
     const newVal = parseInt(val) || 0;
     const now = new Date();
     const dateStr = `${now.getMonth() + 1}월 ${now.getDate()}일 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     
-    const newCards = cards.map(c => c.id === cardId ? { ...c, currentMonthSpend: newVal, currentMonthSpendDate: dateStr } : c);
+    const newCards = cards.map(c => {
+      if (c.id === cardId) {
+        let updatedCard = { ...c, currentMonthSpend: newVal, currentMonthSpendDate: dateStr };
+        
+        // 🔥 카카오뱅크 신한카드(ID: 3)인 경우, 상단에서 횟수를 입력해도 하단 혜택(kb_k1)에 자동 동기화
+        if (c.id === 3) {
+          const newHist = [{ id: Date.now(), amount: newVal, date: new Date().toLocaleDateString() }];
+          updatedCard.benefitSpending = { ...updatedCard.benefitSpending, 'kb_k1': newHist };
+          
+          let newSavedAmount = 0;
+          Object.entries(updatedCard.benefitSpending).forEach(([b_id, histories]) => {
+            const targetBenefit = updatedCard.detailedBenefits.find(b => b.id === b_id);
+            const rate = targetBenefit?.rate || 0;
+            const sum = histories.reduce((s, h) => s + h.amount, 0);
+            newSavedAmount += sum * rate;
+          });
+          updatedCard.savedAmount = newSavedAmount;
+        }
+        return updatedCard;
+      }
+      return c;
+    });
     setCards(newCards);
     const success = await saveToCloud(newCards);
 
+    // 다음 달 문서의 '직전달 실적'에 자동으로 덮어쓰기 (이월)
     if (success && !authError && user) {
       const nextMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
       const nextMonthStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
