@@ -733,10 +733,7 @@ export default function App() {
         <header className="px-6 pt-12 pb-4 bg-white border-b flex justify-between items-center z-20">
           <h1 className="text-xl font-black tracking-tight">Smart<span className="text-indigo-600">Card</span></h1>
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-1 bg-green-50 px-3 py-1.5 rounded-full border border-green-100">
-               <Cloud className="text-green-500" size={14} />
-               <span className="text-[10px] font-bold text-green-700">가족 공유 중</span>
-            </div>
+            {/* Removed the family sharing badge */}
           </div>
         </header>
 
