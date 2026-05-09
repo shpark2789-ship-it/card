@@ -57,7 +57,7 @@ const fetchGemini = async (prompt, systemInstruction) => {
   }
 };
 
-// --- 카드 데이터 세트 (12종 - 데이터 유실 0% 완벽 복구 버전) ---
+// --- 카드 데이터 세트 (12종 - 다둥이 카드 10개 혜택 완벽 복구본) ---
 const INITIAL_CARDS = [
   {
     id: 1,
@@ -159,18 +159,22 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0, 
     benefitSpending: {},
     savedAmount: 0,
-    limitTable: [{"tier": "10만원 이상", "limit": "교통 3천원"}, {"tier": "20만원 이상", "limit": "교통 3천원 + 마트 5천원"}, {"tier": "30만원 이상", "limit": "교통/마트 + 학원/외식 등 추가"}],
+    limitTable: [
+      {"tier": "10만원 이상", "limit": "교통 3~5천 / GS주유 / 영화 / 놀이공원 / 마트·병원 5% / 학원 10%"},
+      {"tier": "20만원 이상", "limit": "패밀리레스토랑 20% 추가"},
+      {"tier": "30만원 이상", "limit": "스타벅스 20% 추가"}
+    ],
     detailedBenefits: [
-      { id: 'dh_1', icon: <MapPin />, title: '공공시설 이용료 할인 (무실적)', desc: '서울시 공영주차장 및 문화시설', minSpend: 0, rate: 0.3, extendedDesc: '공영주차장 30~50%, 남산터널 면제, 박물관 입장료 할인' },
-      { id: 'dh_2', icon: <Bus />, title: '대중교통 10% 할인', desc: '버스, 지하철 요금 청구 할인', minSpend: 100000, rate: 0.1, extendedDesc: '전월 10만 이상 시 월 3,000원 한도' },
-      { id: 'dh_3', icon: <ShoppingCart />, title: '대형마트 5% 할인', desc: '이마트, 홈플러스, 롯데마트', minSpend: 200000, rate: 0.05, extendedDesc: '전월 20만 이상 시 월 5,000원 한도 (창고형 제외)' },
-      { id: 'dh_4', icon: <BookOpen />, title: '전국 학원 5% 할인', desc: '입시, 보습, 외국어 학원 등', minSpend: 300000, rate: 0.05, extendedDesc: '전월 30만 이상 시 월 1만원 한도, 오프라인 결제건' },
-      { id: 'dh_5', icon: <Coffee />, title: '스타벅스/외식 20% 할인', desc: '스타벅스 및 주요 패밀리레스토랑', minSpend: 300000, rate: 0.2, extendedDesc: '스타벅스 월 2회(회당 5천원), 패밀리레스토랑 20% 할인' },
-      { id: 'dh_6', icon: <Ticket />, title: '놀이공원 50% 할인', desc: '에버랜드, 롯데월드, 서울랜드', minSpend: 300000, rate: 0.5, extendedDesc: '본인 자유이용권 50% 현장할인 (통합 월 1회, 연 10회)' },
-      { id: 'dh_7', icon: <Film />, title: '영화관 2~4천원 할인', desc: 'CGV, 롯데시네마, 메가박스', minSpend: 300000, rate: 0.1, extendedDesc: '현장 결제 시 자녀 수 차등 할인 (월 2회)' },
-      { id: 'dh_8', icon: <Droplet />, title: 'GS칼텍스 50~70원 할인', desc: '리터당 청구할인 (자녀수 차등)', minSpend: 300000, rate: 0.03, extendedDesc: '1회 10만원, 일 2회, 월 6회까지 적용' },
-      { id: 'dh_9', icon: <Smartphone />, title: '통신요금 최고 1천원 할인', desc: '자동납부 등록 시 건당 500원 할인', minSpend: 300000, rate: 0.01, extendedDesc: '자동납부 2건 이상 시 최대 1,000원 할인' },
-      { id: 'dh_10', icon: <Scissors />, title: '미용실 전 업종 10% 할인', desc: '전국 미용실 업종 청구할인', minSpend: 300000, rate: 0.1, extendedDesc: '이용대금 차감청구 방식 (통합할인 한도 내)' }
+      { id: 'dh_1', icon: <MapPin />, title: '공공시설 30~50% 할인', desc: '공영주차장, 박물관, 남산터널 등', minSpend: 0, rate: 0.3, extendedDesc: '실적 조건 없음 (서울시 협력 가맹점)' },
+      { id: 'dh_2', icon: <Bus />, title: '대중교통 10% 할인', desc: '버스, 지하철 요금', minSpend: 100000, rate: 0.1, extendedDesc: '전월 10만 이상 시 자녀수별 3~5천원 한도' },
+      { id: 'dh_3', icon: <Utensils />, title: '패밀리레스토랑 20% 할인', desc: '아웃백, 생어거스틴, 감성타코', minSpend: 200000, rate: 0.2, extendedDesc: '전월 20만 이상 시 적용 (건당 최대 2만원 할인)' },
+      { id: 'dh_4', icon: <Coffee />, title: '스타벅스 20% 할인', desc: '스타벅스 전 매장', minSpend: 300000, rate: 0.2, extendedDesc: '전월 30만 이상 시 적용 (월 2회, 최대 5천원 한도)' },
+      { id: 'dh_5', icon: <Droplet />, title: 'GS칼텍스 리터당 50~70원 할인', desc: '주유 시 자녀 수 차등 할인', minSpend: 100000, rate: 0.03, extendedDesc: '최근 3개월 30만(월 10만) 이상 시 / 전월 100만 이상 시 80원' },
+      { id: 'dh_6', icon: <Ticket />, title: '놀이공원 50% 할인', desc: '에버랜드, 롯데월드, 서울랜드', minSpend: 100000, rate: 0.5, extendedDesc: '최근 3개월 30만(월 10만) 이상 시 (통합 월 1회, 연 10회)' },
+      { id: 'dh_7', icon: <Film />, title: '영화관 2~4천원 할인', desc: 'CGV, 롯데시네마, 메가박스', minSpend: 100000, rate: 0.1, extendedDesc: '최근 3개월 30만 이상 시 (월 2회, 자녀수 차등)' },
+      { id: 'dh_8', icon: <ShoppingCart />, title: '대형마트/병원/서점 5% 할인', desc: '이마트, 홈플러스, 롯데마트, 병의원 등', minSpend: 100000, rate: 0.05, extendedDesc: '최근 3개월 30만 이상 시 (특별할인 월 1회 통합 한도 내)' },
+      { id: 'dh_9', icon: <BookOpen />, title: '학원/미용실 10% 할인', desc: '전국 학원 및 미용실 업종', minSpend: 100000, rate: 0.1, extendedDesc: '최근 3개월 30만 이상 시 (특별할인 월 1회 통합 한도 내)' },
+      { id: 'dh_10', icon: <Smartphone />, title: '통신요금 최대 1천원 할인', desc: '자동납부 건당 500원 할인', minSpend: 0, rate: 0.01, extendedDesc: '자동납부 2건 이상 시 최대 1,000원 할인' }
     ]
   },
   {
