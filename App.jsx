@@ -242,11 +242,14 @@ const INITIAL_CARDS = [
     lastMonthSpend: 0, 
     benefitSpending: {}, 
     savedAmount: 0,
-    limitTable: [{"tier": "무실적", "limit": "할인 한도 무제한"}],
+    limitTable: [{"tier": "무실적", "limit": "생활영역 통합 5만원 (기본/간편결제 무제한)"}],
     detailedBenefits: [
-      { id: 'wd_1', icon: <Globe />, title: '전가맹점 0.7% 기본 할인', desc: '실적 조건 없이 무제한', minSpend: 0, rate: 0.007, extendedDesc: '세금, 공과금, 상품권 등 제외' },
-      { id: 'wd_2', icon: <Smartphone />, title: '온라인 간편결제 1.2% 할인', desc: '하나/네이버/카카오/삼성페이 등', minSpend: 0, rate: 0.012, extendedDesc: '오프라인 삼성페이 포함 무제한' },
-      { id: 'wd_3', icon: <ShoppingCart />, title: '대형마트/온라인쇼핑 1.2% 할인', desc: '마트, 트레이더스, 코스트코 등', minSpend: 0, rate: 0.012, extendedDesc: '🔥 창고형 마트(트레이더스 등) 포함 무제한' }
+      { id: 'wd_1', icon: <Globe />, title: '전가맹점 0.7% 청구할인', desc: '국내·외 모든 결제 시', minSpend: 0, rate: 0.007, extendedDesc: '전월 실적 없음 / 혜택 한도 없음' },
+      { id: 'wd_2', icon: <Smartphone />, title: '간편결제 1.2% 청구할인', desc: '하나Pay, 삼성/네이버/카카오페이 등', minSpend: 0, rate: 0.012, extendedDesc: 'SSG/페이코/쿠페이/SK pay 온라인 결제 (무실적/무제한)' },
+      { id: 'wd_3', icon: <Coffee />, title: '베이커리 2.0% 청구할인', desc: '파리바게뜨, 뚜레쥬르, 던킨 등', minSpend: 0, rate: 0.02, extendedDesc: '아티제, 파리크라상, 카페노티드 포함 (통합 혜택 한도 5만원 내)' },
+      { id: 'wd_4', icon: <Bus />, title: '대중교통 3.0% 청구할인', desc: '버스, 지하철', minSpend: 0, rate: 0.03, extendedDesc: '통합 혜택 한도 5만원 내' },
+      { id: 'wd_5', icon: <ShoppingBag />, title: '쿠팡 2.0% 청구할인', desc: '쿠팡 결제 시', minSpend: 0, rate: 0.02, extendedDesc: '통합 혜택 한도 5만원 내' },
+      { id: 'wd_6', icon: <ShoppingCart />, title: '마트 2.0% 청구할인', desc: '이마트, 트레이더스, 홈플러스, 롯데마트', minSpend: 0, rate: 0.02, extendedDesc: '통합 혜택 한도 5만원 내' }
     ]
   },
   {
@@ -473,23 +476,48 @@ export default function App() {
   const handlePrevMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
   const handleNextMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
 
-  // 일반 카드 지출 내역 누적 함수
+  // 일반 카드 지출 내역 누적 함수 (자동 합산 및 톡톡카드 연동 추가)
   const addSpending = async (cardId, benefitId, amount, customDate = null) => {
     if (!amount || amount <= 0) return;
+    const parsedAmount = parseInt(amount);
+    
     const newCards = cards.map(card => {
       if (card.id === cardId) {
         const hist = card.benefitSpending[benefitId] || [];
         const dateStr = customDate ? customDate : new Date().toLocaleDateString();
-        const newHist = [...hist, { id: Date.now(), amount: parseInt(amount), date: dateStr }];
+        const newHist = [...hist, { id: Date.now(), amount: parsedAmount, date: dateStr }];
         const rate = card.detailedBenefits.find(b => b.id === benefitId)?.rate || 0;
-        return {
+        
+        let updatedCard = {
           ...card,
           benefitSpending: { ...card.benefitSpending, [benefitId]: newHist },
-          savedAmount: card.savedAmount + (parseInt(amount) * rate)
+          savedAmount: card.savedAmount + (parsedAmount * rate)
         };
+
+        // 🔥 카카오뱅크(ID: 3) 결제 횟수 카드를 제외하고, 지출 추가 시 '이번 달 실적' 자동 합산!
+        if (card.id !== 3) {
+          updatedCard.currentMonthSpend = (updatedCard.currentMonthSpend || 0) + parsedAmount;
+        }
+
+        // 🔥 국민 톡톡 my point (ID: 5, 12) - KB Pay 5% 기입 시 기본 0.5% 에도 1+1 자동 기입
+        if ((cardId === 5 && benefitId === 'kb_tok2_p') || (cardId === 12 && benefitId === 'kb_tok2_k')) {
+          const basicId = cardId === 5 ? 'kb_tok1_p' : 'kb_tok1_k';
+          const basicHist = updatedCard.benefitSpending[basicId] || [];
+          const basicNewHist = [...basicHist, { id: Date.now() + 1, amount: parsedAmount, date: dateStr }];
+          const basicRate = updatedCard.detailedBenefits.find(b => b.id === basicId)?.rate || 0;
+          
+          updatedCard.benefitSpending[basicId] = basicNewHist;
+          updatedCard.savedAmount += (parsedAmount * basicRate);
+        }
+
+        const now = new Date();
+        updatedCard.currentMonthSpendDate = `${now.getMonth() + 1}월 ${now.getDate()}일 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        return updatedCard;
       }
       return card;
     });
+    
     setCards(newCards);
     const success = await saveToCloud(newCards);
     if (success) { setToastMsg('☁️ 내역 저장 완료'); } 
@@ -550,11 +578,23 @@ export default function App() {
         const newHist = hist.filter(h => h.id !== historyId);
         const removedItem = hist.find(h => h.id === historyId);
         const rate = card.detailedBenefits.find(b => b.id === benefitId)?.rate || 0;
-        return {
+        const removedAmount = removedItem?.amount || 0;
+
+        let updatedCard = {
           ...card,
           benefitSpending: { ...card.benefitSpending, [benefitId]: newHist },
-          savedAmount: card.savedAmount - ((removedItem?.amount || 0) * rate)
+          savedAmount: card.savedAmount - (removedAmount * rate)
         };
+
+        // 🔥 내역 삭제 시 '이번 달 실적'에서도 자동 차감 (카카오뱅크 제외)
+        if (card.id !== 3) {
+          updatedCard.currentMonthSpend = Math.max(0, (updatedCard.currentMonthSpend || 0) - removedAmount);
+        }
+
+        const now = new Date();
+        updatedCard.currentMonthSpendDate = `${now.getMonth() + 1}월 ${now.getDate()}일 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        return updatedCard;
       }
       return card;
     });
