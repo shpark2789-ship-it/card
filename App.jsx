@@ -57,7 +57,7 @@ const fetchGemini = async (prompt, systemInstruction) => {
   }
 };
 
-// --- 카드 데이터 세트 (12종 - 다둥이 카드 10개 혜택 완벽 복구본) ---
+// --- 카드 데이터 세트 (12종 - SHOPPING+ 혜택 및 기존 모든 혜택 완벽 복구본) ---
 const INITIAL_CARDS = [
   {
     id: 1,
@@ -199,7 +199,7 @@ const INITIAL_CARDS = [
   },
   {
     id: 9,
-    name: '카드의 정석 SHOPPING',
+    name: '카드의 정석 SHOPPING+',
     company: '우리카드',
     type: '할인형',
     color: 'bg-gradient-to-br from-red-500 to-red-700',
@@ -210,10 +210,13 @@ const INITIAL_CARDS = [
     savedAmount: 0,
     limitTable: [{"tier": "30만원 이상", "limit": "온라인 4천 / 오프라인 6천"}, {"tier": "70만원 이상", "limit": "온라인 8천 / 오프라인 1.2만"}, {"tier": "120만원 이상", "limit": "온라인 1.6만 / 오프라인 2.4만"}],
     detailedBenefits: [
-      { id: 'sh_1', icon: <Monitor />, title: '온라인 쇼핑 10% + 5% 할인', desc: '쿠팡, G마켓 등 + 간편결제 시 추가', minSpend: 300000, rate: 0.15, extendedDesc: '온라인 쇼핑 10% + 4대 PAY 온라인 결제 시 총 15% 할인' },
-      { id: 'sh_2', icon: <ShoppingBag />, title: '오프라인 쇼핑 10% 할인', desc: '백화점, 마트, 아울렛, 편의점', minSpend: 300000, rate: 0.1, extendedDesc: '트레이더스, 이케아, 올리브영, 다이소 포함' },
-      { id: 'sh_3', icon: <Droplet />, title: '주말 주유 리터당 60원 할인', desc: '4대 주유소 (LPG 제외)', minSpend: 300000, rate: 0.04, extendedDesc: '토/일요일 결제 건에 한해 적용' },
-      { id: 'sh_4', icon: <Coffee />, title: '스타벅스/폴바셋 10% 할인', desc: '커피 전문점 청구 할인', minSpend: 300000, rate: 0.1, extendedDesc: '월 5,000원 할인 한도' }
+      { id: 'sh_1', icon: <Monitor />, title: '온라인 쇼핑 10% 청구할인', desc: '모든 온라인 업종 결제 시', minSpend: 300000, rate: 0.1, extendedDesc: '인터넷 P/G, 상거래 등 온라인 업종 전반 적용' },
+      { id: 'sh_2', icon: <Smartphone />, title: '4대 PAY 온라인 결제 5% 추가할인', desc: '삼성/네이버/카카오/PAYCO', minSpend: 300000, rate: 0.05, extendedDesc: '온라인 쇼핑 10%와 중복 시 총 15% 할인 적용' },
+      { id: 'sh_3', icon: <ShoppingBag />, title: '백화점/대형/창고형 매장 10% 할인', desc: '롯데/현대/신세계, 이마트, 트레이더스, 이케아 등', minSpend: 300000, rate: 0.1, extendedDesc: '대형할인점(홈플, 롯데, 메가, Y마트), 롯데VIC마켓 포함' },
+      { id: 'sh_4', icon: <ShoppingCart />, title: '슈퍼마켓/편의점 10% 할인', desc: '에브리데이, 롯데슈퍼, CU, GS25 등', minSpend: 300000, rate: 0.1, extendedDesc: 'GS수퍼, 홈플익스프레스, 이마트24 포함' },
+      { id: 'sh_5', icon: <Scissors />, title: '아울렛/잡화 10% 할인', desc: '프리미엄 아울렛, 올리브영, 다이소 등', minSpend: 300000, rate: 0.1, extendedDesc: '롯데/현대/신세계사이먼, 롭스, 시코르 오프라인 결제' },
+      { id: 'sh_6', icon: <Droplet />, title: '4대 주유소 주말 리터당 60원 할인', desc: 'SK, GS, S-OIL, HD현대 (주말 한정)', minSpend: 300000, rate: 0.04, extendedDesc: '주유 매출 건당 10만원, 통합 월 30만원 한도 (LPG 제외)' },
+      { id: 'sh_7', icon: <Coffee />, title: '스타벅스/폴바셋 10% 청구할인', desc: '커피 전문점 오프라인 결제', minSpend: 300000, rate: 0.1, extendedDesc: '매출 건당 최고 1천원, 월 최대 5천원까지 할인 (상품권 제외)' }
     ]
   },
   {
@@ -882,7 +885,7 @@ export default function App() {
                   value={cmVal} 
                   onChange={e => setCmVal(e.target.value)} 
                   className="w-full bg-white border-2 border-indigo-100 rounded-xl pl-4 pr-16 py-2.5 font-black text-indigo-700 outline-none shadow-sm"
-                  placeholder={card.id === 3 ? "현재 결제 횟수 기입" : "현재 실적 기입"}
+                  placeholder={card.id === 3 ? "현재 결제 횟 기입" : "현재 실적 기입"}
                 />
                 <button 
                   onClick={() => updateCM(id, cmVal)} 
