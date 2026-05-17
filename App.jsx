@@ -57,7 +57,7 @@ const fetchGemini = async (prompt, systemInstruction) => {
   }
 };
 
-// --- 카드 데이터 세트 (12종 - SHOPPING+ 혜택 및 기존 모든 혜택 완벽 복구본) ---
+// --- 카드 데이터 세트 (SHOPPING+ 혜택 브랜드 전체 명시 완벽판) ---
 const INITIAL_CARDS = [
   {
     id: 1,
@@ -210,13 +210,13 @@ const INITIAL_CARDS = [
     savedAmount: 0,
     limitTable: [{"tier": "30만원 이상", "limit": "온라인 4천 / 오프라인 6천"}, {"tier": "70만원 이상", "limit": "온라인 8천 / 오프라인 1.2만"}, {"tier": "120만원 이상", "limit": "온라인 1.6만 / 오프라인 2.4만"}],
     detailedBenefits: [
-      { id: 'sh_1', icon: <Monitor />, title: '온라인 쇼핑 10% 청구할인', desc: '모든 온라인 업종 결제 시', minSpend: 300000, rate: 0.1, extendedDesc: '인터넷 P/G, 상거래 등 온라인 업종 전반 적용' },
-      { id: 'sh_2', icon: <Smartphone />, title: '4대 PAY 온라인 결제 5% 추가할인', desc: '삼성/네이버/카카오/PAYCO', minSpend: 300000, rate: 0.05, extendedDesc: '온라인 쇼핑 10%와 중복 시 총 15% 할인 적용' },
-      { id: 'sh_3', icon: <ShoppingBag />, title: '백화점/대형/창고형 매장 10% 할인', desc: '롯데/현대/신세계, 이마트, 트레이더스, 이케아 등', minSpend: 300000, rate: 0.1, extendedDesc: '대형할인점(홈플, 롯데, 메가, Y마트), 롯데VIC마켓 포함' },
-      { id: 'sh_4', icon: <ShoppingCart />, title: '슈퍼마켓/편의점 10% 할인', desc: '에브리데이, 롯데슈퍼, CU, GS25 등', minSpend: 300000, rate: 0.1, extendedDesc: 'GS수퍼, 홈플익스프레스, 이마트24 포함' },
-      { id: 'sh_5', icon: <Scissors />, title: '아울렛/잡화 10% 할인', desc: '프리미엄 아울렛, 올리브영, 다이소 등', minSpend: 300000, rate: 0.1, extendedDesc: '롯데/현대/신세계사이먼, 롭스, 시코르 오프라인 결제' },
-      { id: 'sh_6', icon: <Droplet />, title: '4대 주유소 주말 리터당 60원 할인', desc: 'SK, GS, S-OIL, HD현대 (주말 한정)', minSpend: 300000, rate: 0.04, extendedDesc: '주유 매출 건당 10만원, 통합 월 30만원 한도 (LPG 제외)' },
-      { id: 'sh_7', icon: <Coffee />, title: '스타벅스/폴바셋 10% 청구할인', desc: '커피 전문점 오프라인 결제', minSpend: 300000, rate: 0.1, extendedDesc: '매출 건당 최고 1천원, 월 최대 5천원까지 할인 (상품권 제외)' }
+      { id: 'sh_1', icon: <Monitor />, title: '온라인 쇼핑 10% 청구할인', desc: '인터넷 P/G, 인터넷 상거래 등 전 온라인 업종', minSpend: 300000, rate: 0.1, extendedDesc: '특정 쇼핑몰 제한 없이 모든 온라인 결제에 폭넓게 적용됩니다.' },
+      { id: 'sh_2', icon: <Smartphone />, title: '4대 PAY 온라인 결제 5% 추가할인', desc: '삼성페이, 네이버페이, 카카오페이, PAYCO', minSpend: 300000, rate: 0.05, extendedDesc: '온라인 쇼핑 10% 할인과 중복 적용 시 총 15% 할인이 제공됩니다.' },
+      { id: 'sh_3', icon: <ShoppingBag />, title: '백화점/대형할인점 10% 할인', desc: '롯데, 현대, 신세계백화점 / 이마트, 홈플러스, 롯데마트, 메가마트, Y_MART', minSpend: 300000, rate: 0.1, extendedDesc: '오프라인 결제 건에 한하여 제공됩니다.' },
+      { id: 'sh_4', icon: <ShoppingCart />, title: '창고형/슈퍼 10% 할인', desc: '트레이더스 홀세일 클럽, 이케아, 롯데VIC마켓(롯데마트 맥스) / 이마트 에브리데이, 롯데슈퍼, GS수퍼마켓, 홈플러스 익스프레스', minSpend: 300000, rate: 0.1, extendedDesc: '오프라인 결제 건에 한하여 제공됩니다.' },
+      { id: 'sh_5', icon: <Scissors />, title: '아울렛/편의점/잡화 10% 할인', desc: '롯데, 현대, 신세계사이먼 프리미엄 아울렛 / CU, GS25, 이마트24 / 올리브영, LOHB\'s, 시코르, 다이소', minSpend: 300000, rate: 0.1, extendedDesc: '오프라인 결제 건에 한하여 제공됩니다.' },
+      { id: 'sh_6', icon: <Droplet />, title: '4대 주유소 주말 리터당 60원 할인', desc: 'SK주유소, GS칼텍스, S-OIL, HD현대오일뱅크', minSpend: 300000, rate: 0.04, extendedDesc: '주말 주유 시 한정 / 주유 매출 건당 10만원, 통합 월 30만원 한도 (LPG 제외)' },
+      { id: 'sh_7', icon: <Coffee />, title: '스타벅스/폴바셋 10% 청구할인', desc: '스타벅스, 폴바셋', minSpend: 300000, rate: 0.1, extendedDesc: '오프라인 결제 / 매출 건당 최고 1천원, 월 최대 5천원까지 할인 (상품권 제외)' }
     ]
   },
   {
@@ -483,7 +483,7 @@ export default function App() {
   const handlePrevMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
   const handleNextMonth = () => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1));
 
-  // 일반 카드 지출 내역 누적 함수 (자동 합산 및 톡톡카드 연동 추가)
+  // 일반 카드 지출 내역 누적 함수 (자동 합산 및 톡톡카드 연동 유지)
   const addSpending = async (cardId, benefitId, amount, customDate = null) => {
     if (!amount || amount <= 0) return;
     const parsedAmount = parseInt(amount);
@@ -538,7 +538,6 @@ export default function App() {
     const newCards = cards.map(card => {
       if (card.id === cardId) {
         const dateStr = new Date().toLocaleDateString();
-        // 덮어쓰기이므로 배열에 아이템 1개만 넣음
         const newHist = [{ id: Date.now(), amount: parseInt(amount), date: dateStr }];
         const newBenefitSpending = { ...card.benefitSpending, [benefitId]: newHist };
         
@@ -558,8 +557,6 @@ export default function App() {
           savedAmount: newSavedAmount
         };
 
-        // 🔥 카카오뱅크 신한카드(ID: 3)의 메인 혜택(kb_k1)을 덮어쓰기할 때, 
-        // 상단 '이번 달 수동 실적'과 메인 화면의 '결제 횟수'도 자동 동기화!
         if (card.id === 3 && benefitId === 'kb_k1') {
           const now = new Date();
           updatedCard.currentMonthSpend = parseInt(amount);
@@ -593,7 +590,6 @@ export default function App() {
           savedAmount: card.savedAmount - (removedAmount * rate)
         };
 
-        // 🔥 내역 삭제 시 '이번 달 실적'에서도 자동 차감 (카카오뱅크 제외)
         if (card.id !== 3) {
           updatedCard.currentMonthSpend = Math.max(0, (updatedCard.currentMonthSpend || 0) - removedAmount);
         }
@@ -621,7 +617,6 @@ export default function App() {
     setTimeout(() => setToastMsg(''), 2500);
   };
 
-  // 🔥 이번 달 실적 독립 기입 함수 (자동 이월 기능 유지)
   const updateCM = async (cardId, val) => {
     const newVal = parseInt(val) || 0;
     const now = new Date();
@@ -631,7 +626,6 @@ export default function App() {
       if (c.id === cardId) {
         let updatedCard = { ...c, currentMonthSpend: newVal, currentMonthSpendDate: dateStr };
         
-        // 🔥 카카오뱅크 신한카드(ID: 3)인 경우, 상단에서 횟수를 입력해도 하단 혜택(kb_k1)에 자동 동기화
         if (c.id === 3) {
           const newHist = [{ id: Date.now(), amount: newVal, date: new Date().toLocaleDateString() }];
           updatedCard.benefitSpending = { ...updatedCard.benefitSpending, 'kb_k1': newHist };
@@ -652,7 +646,6 @@ export default function App() {
     setCards(newCards);
     const success = await saveToCloud(newCards);
 
-    // 다음 달 문서의 '직전달 실적'에 자동으로 덮어쓰기 (이월)
     if (success && !authError && user) {
       const nextMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
       const nextMonthStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
@@ -812,7 +805,6 @@ export default function App() {
             <div className="flex justify-between items-end">
               <div>
                 <p className="text-[10px] font-black opacity-70">이번 달 수동 실적</p>
-                {/* 🔥 카카오뱅크 신한카드일 경우 '원' 대신 '회'로 표시 */}
                 <p className="text-2xl font-black">{card.id === 3 ? `${card.currentMonthSpend || 0}회` : formatWon(card.currentMonthSpend || 0)}</p>
               </div>
               <div className="text-right">
@@ -840,7 +832,6 @@ export default function App() {
                   적용
                 </button>
               </div>
-              {/* 🔥 단위 변경 */}
               <span className="font-bold text-indigo-600 ml-3 whitespace-nowrap">{card.id === 3 ? '회' : '원'}</span>
             </div>
             
@@ -885,7 +876,7 @@ export default function App() {
                   value={cmVal} 
                   onChange={e => setCmVal(e.target.value)} 
                   className="w-full bg-white border-2 border-indigo-100 rounded-xl pl-4 pr-16 py-2.5 font-black text-indigo-700 outline-none shadow-sm"
-                  placeholder={card.id === 3 ? "현재 결제 횟 기입" : "현재 실적 기입"}
+                  placeholder={card.id === 3 ? "현재 결제 횟수 기입" : "현재 실적 기입"}
                 />
                 <button 
                   onClick={() => updateCM(id, cmVal)} 
@@ -894,7 +885,6 @@ export default function App() {
                   적용
                 </button>
               </div>
-              {/* 🔥 단위 변경 */}
               <span className="font-bold text-indigo-600 ml-3 whitespace-nowrap">{card.id === 3 ? '회' : '원'}</span>
             </div>
             
@@ -931,7 +921,6 @@ export default function App() {
                   </div>
                   {isActive && (
                     <div className="mt-3 bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-inner">
-                      {/* 🔥 카카오뱅크 신한카드(ID: 3)일 경우에는 합계/예상혜택 줄을 완전히 숨김 처리하여 헷갈리지 않게 개선 */}
                       {card.id !== 3 && (
                         <div className="flex justify-between mb-3 items-center">
                           <span className="text-[10px] font-black text-gray-400">
@@ -941,7 +930,6 @@ export default function App() {
                         </div>
                       )}
                       
-                      {/* 🔥 카카오뱅크 신한카드(ID: 3)일 경우, 과거 리스트 숨김 처리 (오직 최종 횟수만 덮어쓰기) */}
                       {hist.length > 0 && card.id !== 3 && (
                         <div className="mb-4 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
                           {hist.map(h => (
@@ -954,7 +942,6 @@ export default function App() {
                       )}
                       
                       <div className="flex space-x-2">
-                        {/* 🔥 카카오뱅크 신한카드(ID:3) 전용 '덮어쓰기' UI */}
                         {card.id === 3 ? (
                           <>
                             <input type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder="최종 결제 횟수 덮어쓰기" className="flex-1 px-4 py-2 rounded-xl text-xs border-none bg-white font-bold outline-none"/>
@@ -1011,7 +998,6 @@ export default function App() {
                       </div>
                       <div className="mt-4 pt-4 border-t flex justify-between items-center border-gray-50">
                         <span className="text-[11px] font-black text-gray-400">
-                          {/* 🔥 메인 지갑 카드 리스트의 단위 표기 변경 */}
                           {c.id === 3 ? `이번 달 결제: ${manualSpend}회` : `이번 달 실적: ${formatWon(manualSpend)}`}
                         </span>
                         <span className={`text-[11px] font-black ${met ? 'text-green-500' : 'text-red-500'}`}>
