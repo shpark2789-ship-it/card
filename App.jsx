@@ -191,10 +191,10 @@ const INITIAL_CARDS = [
     limitTable: [{"tier": "30만원 이상", "limit": "특별/추가 한도 1만점 (기본 무제한)"}, {"tier": "60만원 이상", "limit": "특별/추가 한도 2만점 (기본 무제한)"}, {"tier": "120만원 이상", "limit": "특별/추가 한도 5만점 (기본 무제한)"}],
     detailedBenefits: [
       { id: 'wow_1', icon: <Globe />, title: '국내 전 가맹점 0.8% 적립', desc: '특별적립 가맹점 외 모든 국내 결제', minSpend: 300000, rate: 0.008, extendedDesc: '기본 적립은 한도 제한 없이 무제한 적립' },
-      { id: 'wow_2', icon: <Bus />, title: '통신/교통/전기차 5% 적립', desc: '이동통신, 대중교통, 전기차 충전', minSpend: 300000, rate: 0.05, extendedDesc: 'SKT, KT, LGU+, 알뜰폰 자동이체 / 버스, 지하철 / 전기차 급속충전' },
-      { id: 'wow_3', icon: <Smartphone />, title: '주요 간편결제 3% 추가 적립', desc: '네이버/카카오/PAYCO/SSGPAY', minSpend: 300000, rate: 0.03, extendedDesc: '온/오프라인 모두 적용, 기본/특별 적립과 중복 적용' },
-      { id: 'wow_4', icon: <Film />, title: '커피/영화 3% 적립', desc: '스타벅스, 엔제리너스, 이디야 / CGV, 롯데시네마', minSpend: 300000, rate: 0.03, extendedDesc: '커피는 백화점/마트 입점 매장 제외, 영화는 예매 대행사이트 제외' },
-      { id: 'wow_5', icon: <ShoppingCart />, title: '쇼핑/주유/면세/해외 1% 적립', desc: '백화점, 대형할인점, 온라인쇼핑, 주유 등', minSpend: 300000, rate: 0.01, extendedDesc: '신세계/현대/롯데백화점, 이마트/홈플/롯데마트, 11번가/G마켓/쿠팡 등, SK/GS/현대/S-OIL 주유소' }
+      { id: 'wow_2', icon: <Bus />, title: '통신/교통/전기차 5% 적립', desc: 'SKT, KT, LGU+, CJ헬로모바일, KTM모바일, U+알뜰모바일 / 버스, 지하철 / 전기차 충전', minSpend: 300000, rate: 0.05, extendedDesc: '통신요금 자동이체 시 / 후불교통카드 / 전기차 급속충전기' },
+      { id: 'wow_3', icon: <Smartphone />, title: '간편결제 3% 추가 적립', desc: '네이버페이, 카카오페이, PAYCO, SSGPAY', minSpend: 300000, rate: 0.03, extendedDesc: '온/오프라인 모두 적용, 기본 및 특별 적립과 중복 적용' },
+      { id: 'wow_4', icon: <Film />, title: '커피/영화 3% 적립', desc: '스타벅스, 엔제리너스, 이디야 / CGV, 롯데시네마', minSpend: 300000, rate: 0.03, extendedDesc: '커피: 백화점/할인점 내 매장 제외 / 영화: 예매 대행사이트 결제 제외' },
+      { id: 'wow_5', icon: <ShoppingCart />, title: '쇼핑/주유/면세/해외 1% 적립', desc: '백화점, 할인점, 온라인쇼핑, 주유, 면세점, 해외', minSpend: 300000, rate: 0.01, extendedDesc: '신세계/현대/롯데백화점, 이마트/홈플/롯데마트/VIC마켓/트레이더스, 11번가/G마켓/옥션/롯데ON/쿠팡/티몬/위메프/우리WON마켓, SK/GS/현대오일뱅크/S-OIL' }
     ]
   },
   {
